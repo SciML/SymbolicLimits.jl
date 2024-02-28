@@ -105,31 +105,101 @@ function get_series_term(expr::BasicSymbolic{Field}, sym::BasicSymbolic{Field}, 
         sum(get_series_term(arg, sym, i) for arg in arguments(expr))
     elseif et == MUL
         arg1, arg_rest = Iterators.peel(arguments(expr))
-        terms = Any[get_series_term(arg1, sym, j) for j in 0:i]
-        for arg in arg_rest
-            new_terms = [get_series_term(arg, sym, j) for j in 0:i]
-            for j in i:-1:0
-                terms[j+1] = sum(terms[k+1] * new_terms[j-k+1] for k in 0:j)
-            end
+        arg2 = prod(arg_rest)
+        exponent1 = get_leading_exponent(arg1, sym)
+        exponent2 = get_leading_exponent(arg2, sym)
+        sm = zero(Field)
+        for j in exponent1:(i-exponent2)
+            t1 = get_series_term(arg1, sym, j)
+            t2 = get_series_term(arg2, sym, i-j)
+            sm += t1 * t2
         end
-        terms[i+1]
+        sm
     elseif et == POW
         error("Not implemented: $expr")
     elseif et == DIV
-        error("Not implemented: $expr")
+        args = arguments(expr)
+        @assert length(args) == 2
+        num, den = args
+        num_exponent = get_leading_exponent(num, sym)
+        den_exponent = get_leading_exponent(den, sym)
+        den_leading_term = get_series_term(den, sym, den_exponent)
+        @assert !zero_equivalence(den_leading_term)
+        sm = zero(Field)
+        for j in num_exponent:i+den_exponent
+            t_num = get_series_term(num, sym, j)
+            exponent = i-j
+            sm2 = one(Field) # k = 0 adds one to the sum
+            for k in 1:exponent
+                term = exponent ÷ k
+                if term * k == exponent # integral
+                    sm2 += (-get_series_term(den, sym, term)/den_leading_term)^k
+                end
+            end
+            sm += sm2 * t_num
+        end
+        sm / den_leading_term
     else
         error("Unknwon Expr type: $et")
     end
 end
-
-
-
 function get_series_term(expr::Field, sym::BasicSymbolic{Field}, i::Int) where Field
     exprtype(sym) == SYM || throw(ArgumentError("Must expand with respect to a symbol. Got $sym"))
     i == 0 ? expr : zero(Field)
 end
 
-zero_equivalence(expr) = iszero(simplify(expr)) === true
+function get_leading_exponent(expr::BasicSymbolic{Field}, sym::BasicSymbolic{Field}) where Field
+    exprtype(sym) == SYM || throw(ArgumentError("Must expand with respect to a symbol. Got $sym"))
+
+    zero_equivalence(expr) && return Inf
+
+    et = exprtype(expr)
+    if et == SYM
+        if expr.name == sym.name
+            1
+        else
+            0
+        end
+    elseif et == TERM
+        error("Not implemented: $expr")
+    elseif et == ADD
+        exponent = minimum(get_leading_exponent(arg, sym) for arg in  arguments(expr))
+        for i in exponent:typemax(Int)
+            sm = sum(get_series_term(arg, sym, i) for arg in arguments(expr))
+            if !zero_equivalence(sm)
+                return i
+            end
+            i > exponent+1000 && error("This is likely due to known zero_equivalence bugs")
+        end
+    elseif et == MUL
+        sum(get_leading_exponent(arg, sym) for arg in arguments(expr))
+    elseif et == POW
+        error("Not implemented: $expr")
+    elseif et == DIV
+        args = arguments(expr)
+        @assert length(args) == 2
+        num, den = args
+         # The naive answer is actually correct. See the get_series_term implementation for how.
+        get_leading_exponent(num, sym) - get_leading_exponent(den, sym)
+    else
+        error("Unknwon Expr type: $et")
+    end
+end
+function get_leading_exponent(expr::Field, sym::BasicSymbolic{Field}) where Field
+    exprtype(sym) == SYM || throw(ArgumentError("Must expand with respect to a symbol. Got $sym"))
+    zero_equivalence(expr) ? Inf : 0
+end
+
+
+zero_equivalence(expr) = iszero(simplify(expr, expand=true)) === true
+
+using Test
+let
+    @syms x::Real y::Real
+    @test zero_equivalence(x*(x+y)-x-x*y+x-x*(x+1)+x)
+    @test_broken zero_equivalence(exp((x+1)*x - x*x-x)-1)
+end
+
 function get_first_nonzero_term(expr, sym::BasicSymbolic)
     zero_equivalence(expr) && return 0, -1
     for i in 0:typemax(Int)
