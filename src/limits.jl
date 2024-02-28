@@ -100,7 +100,14 @@ function get_series_term(expr::BasicSymbolic{Field}, sym::BasicSymbolic{Field}, 
             i == 0 ? expr : zero(Field)
         end
     elseif et == TERM
-        error("Not implemented: $expr")
+        op = operation(expr)
+        if op == log
+            error("Not implemented: $op")
+        elseif op == exp
+            error("Not implemented: $op")
+        else
+            error("Not implemented: $op")
+        end
     elseif et == ADD
         sum(get_series_term(arg, sym, i) for arg in arguments(expr))
     elseif et == MUL
@@ -116,7 +123,10 @@ function get_series_term(expr::BasicSymbolic{Field}, sym::BasicSymbolic{Field}, 
         end
         sm
     elseif et == POW
-        error("Not implemented: $expr")
+        args = arguments(expr)
+        @assert length(args) == 2
+        base, exponent = args
+        get_series_term(exp(log(base)*exponent), sym, i)
     elseif et == DIV
         args = arguments(expr)
         @assert length(args) == 2
@@ -161,7 +171,14 @@ function get_leading_exponent(expr::BasicSymbolic{Field}, sym::BasicSymbolic{Fie
             0
         end
     elseif et == TERM
-        error("Not implemented: $expr")
+        op = operation(expr)
+        if op == log
+            error("Not implemented: $op")
+        elseif op == exp
+            error("Not implemented: $op")
+        else
+            error("Not implemented: $op")
+        end
     elseif et == ADD
         exponent = minimum(get_leading_exponent(arg, sym) for arg in  arguments(expr))
         for i in exponent:typemax(Int)
@@ -174,7 +191,10 @@ function get_leading_exponent(expr::BasicSymbolic{Field}, sym::BasicSymbolic{Fie
     elseif et == MUL
         sum(get_leading_exponent(arg, sym) for arg in arguments(expr))
     elseif et == POW
-        error("Not implemented: $expr")
+        args = arguments(expr)
+        @assert length(args) == 2
+        base, exponent = args
+        get_leading_exponent(exp(log(base)*exponent), sym)
     elseif et == DIV
         args = arguments(expr)
         @assert length(args) == 2
