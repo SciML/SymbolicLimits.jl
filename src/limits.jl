@@ -16,6 +16,7 @@ limit(exp(csc(x))/exp(cot(x)), x, 0) (1)
 limit(exp(x)*(sin(1/x+exp(-x)) - sin(1/x)), x, Inf) (1)
 limit(log(log(x*exp(x*exp(x))+1))-exp(exp(log(log(x))+1/x))) (?)
 limit(2exp(-x)/exp(-x), x, 0) (2)
+limit(exp(csc(x))/exp(cot(x)), x, 0) (1)
 =#
 
 # The limit of a continuous function `f` (e.g. all rational functions) is the function
@@ -89,7 +90,7 @@ end
 
 # We can't just do a series expansion of the raw input in terms of x because given a serise
 # expansion of `g` in terms of `x`, how do we get a series expansion of `log(g)` in terms of
-# `x`? ...supposedly...
+# `x`?
 
 using SymbolicUtils: BasicSymbolic, exprtype
 using SymbolicUtils: SYM, TERM, ADD, MUL, POW, DIV
