@@ -87,6 +87,10 @@ end
 
 =#
 
+# We can't just do a series expansion of the raw input in terms of x because given a serise
+# expansion of `g` in terms of `x`, how do we get a series expansion of `log(g)` in terms of
+# `x`? ...supposedly...
+
 using SymbolicUtils: BasicSymbolic, exprtype
 using SymbolicUtils: SYM, TERM, ADD, MUL, POW, DIV
 function get_series_term(expr::BasicSymbolic{Field}, sym::BasicSymbolic{Field}, i::Int) where Field
@@ -126,7 +130,7 @@ function get_series_term(expr::BasicSymbolic{Field}, sym::BasicSymbolic{Field}, 
         args = arguments(expr)
         @assert length(args) == 2
         base, exponent = args
-        get_series_term(exp(log(base)*exponent), sym, i)
+        get_series_term(exp(_log(base)*exponent), sym, i)
     elseif et == DIV
         args = arguments(expr)
         @assert length(args) == 2
@@ -194,7 +198,7 @@ function get_leading_exponent(expr::BasicSymbolic{Field}, sym::BasicSymbolic{Fie
         args = arguments(expr)
         @assert length(args) == 2
         base, exponent = args
-        get_leading_exponent(exp(log(base)*exponent), sym)
+        get_leading_exponent(exp(_log(base)*exponent), sym)
     elseif et == DIV
         args = arguments(expr)
         @assert length(args) == 2
@@ -210,6 +214,14 @@ function get_leading_exponent(expr::Field, sym::BasicSymbolic{Field}) where Fiel
     zero_equivalence(expr) ? Inf : 0
 end
 
+_log(x) = log(x)
+function _log(x::BasicSymbolic)
+    if operation(x) == exp
+        only(arguments(x))
+    else
+        log(x)
+    end
+end
 
 zero_equivalence(expr) = iszero(simplify(expr, expand=true)) === true
 
