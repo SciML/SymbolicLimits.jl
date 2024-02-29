@@ -92,6 +92,7 @@ end
 # expansion of `g` in terms of `x`, how do we get a series expansion of `log(g)` in terms of
 # `x`?
 
+using SymbolicUtils
 using SymbolicUtils: BasicSymbolic, exprtype
 using SymbolicUtils: SYM, TERM, ADD, MUL, POW, DIV
 function get_series_term(expr::BasicSymbolic{Field}, sym::BasicSymbolic{Field}, i::Int) where Field
@@ -107,9 +108,49 @@ function get_series_term(expr::BasicSymbolic{Field}, sym::BasicSymbolic{Field}, 
     elseif et == TERM
         op = operation(expr)
         if op == log
-            error("Not implemented: $op")
+            arg = only(arguments(expr))
+            exponent = get_leading_exponent(arg, sym)
+            t0 = get_series_term(arg, sym, exponent)
+            if i == 0
+                _log(t0*sym^exponent)
+            else
+                # TODO: refactor this to share code for the "sum of powers of a series" form
+                sm = zero(Field)
+                for k in 1:i # the sum starts at 1
+                    term = i ÷ k
+                    if term * k == i # integral
+                        sm += (-get_series_term(arg, sym, term+exponent)/t0)^k/k
+                    end
+                end
+                # TODO: All these for loops are ugly and error-prone
+                # abstract this all away into a lazy series type to pay of the tech-debt.
+                -sm
+            end
         elseif op == exp
-            error("Not implemented: $op")
+            i < 0 && return zero(Field)
+            arg = only(arguments(expr))
+            exponent = get_leading_exponent(arg, sym)
+            sm = one(Field) # k == 0 adds one to the sum
+            if exponent == 0
+                # e^c0 * sum (s-t0)^k/k!
+                # TODO: refactor this to share code for the "sum of powers of a series" form
+                for k in 1:i
+                    term = i ÷ k
+                    if term * k == i # integral
+                        sm += get_series_term(arg, sym, term+exponent)^k/factorial(k) # this could overflow... oh well. It'l error if it does.
+                    end
+                end
+                sm * exp(get_series_term(arg, sym, exponent))
+            else @assert exponent > 0 # from the theory.
+                # sum s^k/k!
+                for k in 1:i
+                    term = i ÷ k
+                    if term * k == i && term >= exponent # integral and not structural zero
+                        sm += get_series_term(arg, sym, term+exponent)^k/factorial(k) # this could overflow... oh well. It'l error if it does.
+                    end
+                end
+                sm
+            end
         else
             error("Not implemented: $op")
         end
@@ -144,11 +185,12 @@ function get_series_term(expr::BasicSymbolic{Field}, sym::BasicSymbolic{Field}, 
         for j in num_exponent:i+den_exponent
             t_num = get_series_term(num, sym, j)
             exponent = i-j
+            # TODO: refactor this to share code for the "sum of powers of a series" form
             sm2 = one(Field) # k = 0 adds one to the sum
             for k in 1:exponent
                 term = exponent ÷ k
                 if term * k == exponent # integral
-                    sm2 += (-get_series_term(den, sym, term)/den_leading_term)^k
+                    sm2 += (-get_series_term(den, sym, term+den_exponent)/den_leading_term)^k
                 end
             end
             sm += sm2 * t_num
@@ -178,9 +220,18 @@ function get_leading_exponent(expr::BasicSymbolic{Field}, sym::BasicSymbolic{Fie
     elseif et == TERM
         op = operation(expr)
         if op == log
-            error("Not implemented: $op")
+            arg = only(arguments(expr))
+            exponent = get_leading_exponent(arg, sym)
+            lt = get_series_term(arg, sym, exponent)
+            if !zero_equivalence(lt - one(Field))
+                0
+            else
+                # There will never be a term with power less than 0, and the zero power term
+                # is log(T0) which is handled above with the "isone" check.
+                findfirst(i -> zero_equivalence(get_series_term(expr, sym, i)), 1:typemax(Int))
+            end
         elseif op == exp
-            error("Not implemented: $op")
+            0
         else
             error("Not implemented: $op")
         end
@@ -217,7 +268,7 @@ end
 
 _log(x) = log(x)
 function _log(x::BasicSymbolic)
-    if operation(x) == exp
+    if exprtype(x) == TERM && operation(x) == exp
         only(arguments(x))
     else
         log(x)
