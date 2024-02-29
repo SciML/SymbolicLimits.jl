@@ -115,7 +115,7 @@ function get_series_term(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field}, h
             exponent = get_leading_exponent(arg, ω, h)
             t0 = get_series_term(arg, ω, h, exponent)
             if i == 0
-                _log(t0*ω^exponent)
+                _log(t0*ω^exponent, ω, h)
             else
                 # TODO: refactor this to share code for the "sum of powers of a series" form
                 sm = zero(Field)
@@ -175,7 +175,16 @@ function get_series_term(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field}, h
         args = arguments(expr)
         @assert length(args) == 2
         base, exponent = args
-        get_series_term(exp(_log(base)*exponent), ω, h, i)
+        if exponent isa Real && isinteger(exponent)
+            t = i ÷ exponent
+            if t * exponent == i # integral
+                get_series_term(base, ω, h, t) ^ exponent
+            else
+                zero(Field)
+            end
+        else
+            error("Not implemented: POW with noninteger exponent $exponent. Transform to log/exp.")
+        end
     elseif et == DIV
         args = arguments(expr)
         @assert length(args) == 2
@@ -249,11 +258,15 @@ function get_leading_exponent(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Fiel
         end
     elseif et == MUL
         sum(get_leading_exponent(arg, ω, h) for arg in arguments(expr))
-    elseif et == POW
+    elseif et == POW # This is not an idiomatic representation of powers. Avoid it if possible.
         args = arguments(expr)
         @assert length(args) == 2
         base, exponent = args
-        get_leading_exponent(exp(_log(base)*exponent), ω, h)
+        if exponent isa Real && isinteger(exponent)
+            exponent * get_leading_exponent(base, ω, h)
+        else
+            error("Not implemented: POW with noninteger exponent $exponent. Transform to log/exp.")
+        end
     elseif et == DIV
         args = arguments(expr)
         @assert length(args) == 2
@@ -269,13 +282,11 @@ function get_leading_exponent(expr::Field, ω::BasicSymbolic{Field}, h) where Fi
     zero_equivalence(expr) ? Inf : 0
 end
 
-_log(x) = log(x)
-function _log(x::BasicSymbolic)
-    if exprtype(x) == TERM && operation(x) == exp
-        only(arguments(x))
-    else
-        log(x)
-    end
+_log(x, ω, h) = log(x)
+function _log(x::BasicSymbolic, ω::BasicSymbolic, h)
+    exprtype(x) == TERM && operation(x) == exp && return only(arguments(x))
+    x === ω && return h
+    log(x)
 end
 
 zero_equivalence(expr) = iszero(simplify(expr, expand=true)) === true
@@ -286,7 +297,7 @@ let
     @test zero_equivalence(x*(x+y)-x-x*y+x-x*(x+1)+x)
     @test_broken zero_equivalence(exp((x+1)*x - x*x-x)-1)
 
-    @test_broken get_leading_exponent(x^2, x, nothing) == 2
+    @test get_leading_exponent(x^2, x, nothing) == 2
     @test get_series_term(log(exp(x)), x, nothing, 1) == 1
     @test get_series_term(log(exp(x)), x, nothing, 0) == 0
     @test_broken get_series_term(log(exp(x)), x, nothing, 2) == 0
