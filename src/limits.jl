@@ -293,7 +293,7 @@ zero_equivalence(expr) = iszero(simplify(expr, expand=true)) === true
 
 using Test
 let
-    @syms x::Real y::Real
+    @syms x::Real y::Real ω::Real
     @test zero_equivalence(x*(x+y)-x-x*y+x-x*(x+1)+x)
     @test_broken zero_equivalence(exp((x+1)*x - x*x-x)-1)
 
@@ -301,6 +301,40 @@ let
     @test get_series_term(log(exp(x)), x, nothing, 1) == 1
     @test get_series_term(log(exp(x)), x, nothing, 0) == 0
     @test_broken get_series_term(log(exp(x)), x, nothing, 2) == 0 # This is okay to be broken because exp(ω) is more rapidly varying than ω.
+
+    # F = exp(x+exp(-x))-exp(x)
+    # Ω = {exp(x + exp(-x)), exp(x), exp(-x)}
+    # Topl-sort Ω by containment
+    # Take a smallest element of Ω and call it ω.
+    # ω = exp(-x)
+    # From largest to smallest, rewrite elements f ∈ Ω in terms of ω in the form
+    # Assume f is of the form exp(s) and ω is of the form exp(t).
+    # -- Recursively compute c = lim(s/t)
+    # f = f*ω^c/ω^c = exp(log(f)-c*log(ω))*ω^c = exp(s-ct)*ω^c
+
+    # f = exp(x+exp(-x))
+    # s = x+exp(-x)
+    # t = -x
+    # c = lim(s/t) = lim((x+exp(-x))/-x) = -1
+    # f = exp(s-ct)*ω^c = exp(x+exp(-x)-c*t)*ω^-1 = exp(exp(-x))/ω
+
+    # F = exp(exp(-x))/ω - exp(x)
+
+    # f = exp(x)
+    # s = x
+    # t = -x
+    # c = -1
+    # f = exp(s-ct)*ω^c = exp(x-c*t)*ω^-1 = exp(0)/ω = 1/ω
+
+    # F = exp(exp(-x))/ω - 1/ω
+
+    # ...
+
+    # F = exp(ω)/ω - 1/ω
+    let F = exp(ω)/ω - 1/ω, h=-x
+        @test get_leading_exponent(F, ω, h) == 0
+        @test get_series_term(F, ω, h, 0) == 1 # the correct final answer
+    end
 
     function test(expr, leading_exp, series, sym=x)
         lt = get_leading_exponent(expr, sym, nothing)
