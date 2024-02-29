@@ -97,6 +97,16 @@ function recursive(f, args...)
     g(args...)
 end
 
+# TODO: use recursive
+log_exp_simplify(expr) = expr
+function log_exp_simplify(expr::BasicSymbolic)
+    exprtype(expr) == SYM && return expr
+    exprtype(expr) == TERM && operation(expr) == log || return operation(expr)(log_exp_simplify.(arguments(expr))...)
+    arg = log_exp_simplify(only(arguments(expr)))
+    arg isa BasicSymbolic && exprtype(arg) == TERM && operation(arg) == exp || return log(arg)
+    only(arguments(arg))
+end
+
 using SymbolicUtils
 using SymbolicUtils: BasicSymbolic, exprtype
 using SymbolicUtils: SYM, TERM, ADD, MUL, POW, DIV
@@ -445,4 +455,13 @@ let
 
     @test_broken only(most_rapidly_varying_subexpressions(exp(x), x)) - exp(x) === 0 # works if you define `limit(args...) = Inf`
     @test_broken all(i -> i === x, most_rapidly_varying_subexpressions(x+2(x+1), x)) # works if you define `limit(args...) = 1`
+
+    @test log_exp_simplify(x) === x
+    @test log_exp_simplify(exp(x)) === exp(x)
+    @test log_exp_simplify(exp(log(x))) === exp(log(x))
+    @test log_exp_simplify(log(exp(x))) === x
+    @test log_exp_simplify(log(exp(log(x)))) === log(x)
+    @test (log_exp_simplify(log(exp(1+x))) - (1+x)) === 0
+    @test log_exp_simplify(log(log(exp(exp(x))))) === x
+    @test log_exp_simplify(log(exp(log(exp(x))))) === x
 end
