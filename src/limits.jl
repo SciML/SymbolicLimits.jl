@@ -300,6 +300,11 @@ let
     @test zero_equivalence(x*(x+y)-x-x*y+x-x*(x+1)+x)
     @test_broken zero_equivalence(exp((x+1)*x - x*x-x)-1)
 
+    @test_broken get_leading_exponent(x^2, x) == 2
+    @test get_series_term(log(exp(x)), x, 1) == 1
+    @test get_series_term(log(exp(x)), x, 0) == 0
+    @test_broken get_series_term(log(exp(x)), x, 2) == 0
+
     function test(expr, leading_exp, series, sym=x)
         lt = get_leading_exponent(expr, sym)
         @test lt === leading_exp
