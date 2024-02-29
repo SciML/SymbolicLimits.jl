@@ -277,13 +277,6 @@ end
 
 zero_equivalence(expr) = iszero(simplify(expr, expand=true)) === true
 
-using Test
-let
-    @syms x::Real y::Real
-    @test zero_equivalence(x*(x+y)-x-x*y+x-x*(x+1)+x)
-    @test_broken zero_equivalence(exp((x+1)*x - x*x-x)-1)
-end
-
 function get_first_nonzero_term(expr, sym::BasicSymbolic)
     zero_equivalence(expr) && return 0, -1
     for i in 0:typemax(Int)
@@ -299,4 +292,25 @@ struct Series
     cache::Vector{Any}
     expr::BasicSymbolic
     sym::BasicSymbolic
+end
+
+using Test
+let
+    @syms x::Real y::Real
+    @test zero_equivalence(x*(x+y)-x-x*y+x-x*(x+1)+x)
+    @test_broken zero_equivalence(exp((x+1)*x - x*x-x)-1)
+
+    function test(expr, leading_exp, series, sym=x)
+        lt = get_leading_exponent(expr, sym)
+        @test lt === leading_exp
+        for (i,val) in enumerate(series)
+            @test get_series_term(expr, sym, lt+i-1) === val
+        end
+        for i in leading_exp-10:leading_exp-1
+            @test get_series_term(expr, sym, i) === 0
+        end
+    end
+    test(x, 1, [1,0,0,0,0,0])
+    # test(x^2, 2, [1,0,0,0,0,0]) # broken
+    # test(x^2+x, 1, [1,0,1,0,0,0]) # broken
 end
