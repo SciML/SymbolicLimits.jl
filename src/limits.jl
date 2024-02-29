@@ -97,7 +97,7 @@ function recursive(f, args...)
     g(args...)
 end
 
-# TODO: use recursive
+# TODO: use recursive or @rrule
 log_exp_simplify(expr) = expr
 function log_exp_simplify(expr::BasicSymbolic)
     exprtype(expr) == SYM && return expr
