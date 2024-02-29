@@ -300,7 +300,7 @@ let
     @test get_leading_exponent(x^2, x, nothing) == 2
     @test get_series_term(log(exp(x)), x, nothing, 1) == 1
     @test get_series_term(log(exp(x)), x, nothing, 0) == 0
-    @test_broken get_series_term(log(exp(x)), x, nothing, 2) == 0
+    @test_broken get_series_term(log(exp(x)), x, nothing, 2) == 0 # This is okay to be broken because exp(ω) is more rapidly varying than ω.
 
     function test(expr, leading_exp, series, sym=x)
         lt = get_leading_exponent(expr, sym, nothing)
@@ -313,6 +313,6 @@ let
         end
     end
     test(x, 1, [1,0,0,0,0,0])
-    # test(x^2, 2, [1,0,0,0,0,0]) # broken
-    # test(x^2+x, 1, [1,0,1,0,0,0]) # broken
+    test(x^2, 2, [1,0,0,0,0,0])
+    test(x^2+x, 1, [1,1,0,0,0,0])
 end
