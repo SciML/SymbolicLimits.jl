@@ -95,6 +95,18 @@ end
 using SymbolicUtils
 using SymbolicUtils: BasicSymbolic, exprtype
 using SymbolicUtils: SYM, TERM, ADD, MUL, POW, DIV
+
+function rewrite(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field}, h::BasicSymbolic{Field}, x::BasicSymbolic{Field}) where Field
+    @assert exprtype(expr) == TERM && operation(expr) == exp
+    @assert exprtype(ω) == SYM
+    @assert exprtype(x) == SYM
+
+    s = only(arguments(expr))
+    t = h
+    c = limit(s/t, x)
+    @assert isfinite(c) && !iszero(c)
+    exp(s-c*t)*ω^c # I wonder how this works with multiple variables...
+end
 """
 ω is a symbol that represents the expression exp(h).
 """
@@ -317,6 +329,8 @@ let
     # t = -x
     # c = lim(s/t) = lim((x+exp(-x))/-x) = -1
     # f = exp(s-ct)*ω^c = exp(x+exp(-x)-c*t)*ω^-1 = exp(exp(-x))/ω
+
+    @test_broken rewrite(exp(x+exp(-x)), ω, -x, x) == exp(exp(-x))/ω # it works if you define `limit(args...) = -1`
 
     # F = exp(exp(-x))/ω - exp(x)
 
