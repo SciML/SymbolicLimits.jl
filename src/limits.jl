@@ -101,6 +101,73 @@ using SymbolicUtils
 using SymbolicUtils: BasicSymbolic, exprtype
 using SymbolicUtils: SYM, TERM, ADD, MUL, POW, DIV
 
+function most_rapidly_varying_subexpressions(expr::BasicSymbolic{Field}, x::BasicSymbolic{Field}) where Field
+    exprtype(x) == SYM || throw(ArgumentError("Must expand with respect to a symbol. Got $x"))
+    # TODO: this is slow. This whole algorithm is slow. Profile, benchmark, and optimize it.
+    et = exprtype(expr)
+    if et == SYM
+        if expr.name == x.name
+            [expr]
+        else
+            []
+        end
+    elseif et == TERM
+        op = operation(expr)
+        if op == log
+            arg = only(arguments(expr))
+            most_rapidly_varying_subexpressions(arg, x)
+        elseif op == exp
+            arg = only(arguments(expr))
+            if isfinite(limit(arg, x))
+                most_rapidly_varying_subexpressions(arg, x)
+            else
+                mrv_join(x)(most_rapidly_varying_subexpressions(arg, x), [expr])
+            end
+        else
+            error("Not implemented: $op")
+        end
+    elseif et ∈ (ADD, MUL, DIV)
+        mapreduce(most_rapidly_varying_subexpressions, mrv_join(x), arguments(expr), init=[])
+    elseif et == POW
+        args = arguments(expr)
+        @assert length(args) == 2
+        base, exponent = args
+        if exponent isa Real && isinteger(exponent)
+            most_rapidly_varying_subexpressions(base, x)
+        else
+            error("Not implemented: POW with noninteger exponent $exponent. Transform to log/exp.")
+        end
+    else
+        error("Unknwon Expr type: $et")
+    end
+end
+
+"""
+    f ≺ g iff log(f)/log(g) -> 0
+"""
+function compare_varience_rapidity(expr1, expr2, x)
+    lim = limit(_log(expr1)/_log(expr2), x)
+    iszero(lim) && return -1
+    isfinite(lim) && return 0
+    isinf(lim) && return 1
+    error("Unexpected limit result: $lim") # e.g. if it depends on other variables?
+end
+
+function mrv_join(x)
+    function (mrvs1, mrvs2)
+        isempty(mrvs1) && return mrvs2
+        isempty(mrvs2) && return mrvs1
+        cmp = compare_varience_rapidity(first(mrvs1), first(mrvs2), x)
+        if cmp == -1
+            mrvs1
+        elseif cmp == 1
+            mrvs2
+        else
+            vcat(mrvs1, mrvs2) # sets? unions? performance? nah. This saves us a topl-sort.
+        end
+    end
+end
+
 function rewrite(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field}, h::BasicSymbolic{Field}, x::BasicSymbolic{Field}) where Field
     @assert exprtype(expr) == TERM && operation(expr) == exp
     @assert exprtype(ω) == SYM
@@ -112,6 +179,7 @@ function rewrite(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field}, h::BasicS
     @assert isfinite(c) && !iszero(c)
     exp(s-c*t)*ω^c # I wonder how this works with multiple variables...
 end
+
 """
 ω is a symbol that represents the expression exp(h).
 """
@@ -299,6 +367,7 @@ function get_leading_exponent(expr::Field, ω::BasicSymbolic{Field}, h) where Fi
     zero_equivalence(expr) ? Inf : 0
 end
 
+_log(x) = _log(x, nothing, nothing)
 _log(x, ω, h) = log(x)
 function _log(x::BasicSymbolic, ω::BasicSymbolic, h)
     exprtype(x) == TERM && operation(x) == exp && return only(arguments(x))
@@ -372,4 +441,6 @@ let
     @test recursive([1,[2,3]]) do f, arg
         arg isa AbstractArray ? sum(f, arg) : arg
     end == 6
+
+    @test_broken most_rapidly_varying_subexpressions(exp(x), x) == [exp(x)] # works if you define `limit(args...) = Inf`
 end
