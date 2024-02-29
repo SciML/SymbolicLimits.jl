@@ -95,7 +95,10 @@ end
 using SymbolicUtils
 using SymbolicUtils: BasicSymbolic, exprtype
 using SymbolicUtils: SYM, TERM, ADD, MUL, POW, DIV
-function get_series_term(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field}, i::Int) where Field
+"""
+ω is a symbol that represents the expression exp(h).
+"""
+function get_series_term(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field}, h, i::Int) where Field
     exprtype(ω) == SYM || throw(ArgumentError("Must expand with respect to a symbol. Got $ω"))
 
     et = exprtype(expr)
@@ -109,8 +112,8 @@ function get_series_term(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field}, i
         op = operation(expr)
         if op == log
             arg = only(arguments(expr))
-            exponent = get_leading_exponent(arg, ω)
-            t0 = get_series_term(arg, ω, exponent)
+            exponent = get_leading_exponent(arg, ω, h)
+            t0 = get_series_term(arg, ω, h, exponent)
             if i == 0
                 _log(t0*ω^exponent)
             else
@@ -119,7 +122,7 @@ function get_series_term(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field}, i
                 for k in 1:i # the sum starts at 1
                     term = i ÷ k
                     if term * k == i # integral
-                        sm += (-get_series_term(arg, ω, term+exponent)/t0)^k/k
+                        sm += (-get_series_term(arg, ω, h, term+exponent)/t0)^k/k
                     end
                 end
                 # TODO: All these for loops are ugly and error-prone
@@ -129,7 +132,7 @@ function get_series_term(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field}, i
         elseif op == exp
             i < 0 && return zero(Field)
             arg = only(arguments(expr))
-            exponent = get_leading_exponent(arg, ω)
+            exponent = get_leading_exponent(arg, ω, h)
             sm = one(Field) # k == 0 adds one to the sum
             if exponent == 0
                 # e^c0 * sum (s-t0)^k/k!
@@ -137,16 +140,16 @@ function get_series_term(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field}, i
                 for k in 1:i
                     term = i ÷ k
                     if term * k == i # integral
-                        sm += get_series_term(arg, ω, term+exponent)^k/factorial(k) # this could overflow... oh well. It'l error if it does.
+                        sm += get_series_term(arg, ω, h, term+exponent)^k/factorial(k) # this could overflow... oh well. It'l error if it does.
                     end
                 end
-                sm * exp(get_series_term(arg, ω, exponent))
+                sm * exp(get_series_term(arg, ω, h, exponent))
             else @assert exponent > 0 # from the theory.
                 # sum s^k/k!
                 for k in 1:i
                     term = i ÷ k
                     if term * k == i && term >= exponent # integral and not structural zero
-                        sm += get_series_term(arg, ω, term+exponent)^k/factorial(k) # this could overflow... oh well. It'l error if it does.
+                        sm += get_series_term(arg, ω, h, term+exponent)^k/factorial(k) # this could overflow... oh well. It'l error if it does.
                     end
                 end
                 sm
@@ -155,16 +158,16 @@ function get_series_term(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field}, i
             error("Not implemented: $op")
         end
     elseif et == ADD
-        sum(get_series_term(arg, ω, i) for arg in arguments(expr))
+        sum(get_series_term(arg, ω, h, i) for arg in arguments(expr))
     elseif et == MUL
         arg1, arg_rest = Iterators.peel(arguments(expr))
         arg2 = prod(arg_rest)
-        exponent1 = get_leading_exponent(arg1, ω)
-        exponent2 = get_leading_exponent(arg2, ω)
+        exponent1 = get_leading_exponent(arg1, ω, h)
+        exponent2 = get_leading_exponent(arg2, ω, h)
         sm = zero(Field)
         for j in exponent1:(i-exponent2)
-            t1 = get_series_term(arg1, ω, j)
-            t2 = get_series_term(arg2, ω, i-j)
+            t1 = get_series_term(arg1, ω, h, j)
+            t2 = get_series_term(arg2, ω, h, i-j)
             sm += t1 * t2
         end
         sm
@@ -172,25 +175,25 @@ function get_series_term(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field}, i
         args = arguments(expr)
         @assert length(args) == 2
         base, exponent = args
-        get_series_term(exp(_log(base)*exponent), ω, i)
+        get_series_term(exp(_log(base)*exponent), ω, h, i)
     elseif et == DIV
         args = arguments(expr)
         @assert length(args) == 2
         num, den = args
-        num_exponent = get_leading_exponent(num, ω)
-        den_exponent = get_leading_exponent(den, ω)
-        den_leading_term = get_series_term(den, ω, den_exponent)
+        num_exponent = get_leading_exponent(num, ω, h)
+        den_exponent = get_leading_exponent(den, ω, h)
+        den_leading_term = get_series_term(den, ω, h, den_exponent)
         @assert !zero_equivalence(den_leading_term)
         sm = zero(Field)
         for j in num_exponent:i+den_exponent
-            t_num = get_series_term(num, ω, j)
+            t_num = get_series_term(num, ω, h, j)
             exponent = i-j
             # TODO: refactor this to share code for the "sum of powers of a series" form
             sm2 = one(Field) # k = 0 adds one to the sum
             for k in 1:exponent
                 term = exponent ÷ k
                 if term * k == exponent # integral
-                    sm2 += (-get_series_term(den, ω, term+den_exponent)/den_leading_term)^k
+                    sm2 += (-get_series_term(den, ω, h, term+den_exponent)/den_leading_term)^k
                 end
             end
             sm += sm2 * t_num
@@ -200,12 +203,12 @@ function get_series_term(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field}, i
         error("Unknwon Expr type: $et")
     end
 end
-function get_series_term(expr::Field, ω::BasicSymbolic{Field}, i::Int) where Field
+function get_series_term(expr::Field, ω::BasicSymbolic{Field}, h, i::Int) where Field
     exprtype(ω) == SYM || throw(ArgumentError("Must expand with respect to a symbol. Got $ω"))
     i == 0 ? expr : zero(Field)
 end
 
-function get_leading_exponent(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field}) where Field
+function get_leading_exponent(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field}, h) where Field
     exprtype(ω) == SYM || throw(ArgumentError("Must expand with respect to a symbol. Got $ω"))
 
     zero_equivalence(expr) && return Inf
@@ -221,14 +224,14 @@ function get_leading_exponent(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Fiel
         op = operation(expr)
         if op == log
             arg = only(arguments(expr))
-            exponent = get_leading_exponent(arg, ω)
-            lt = get_series_term(arg, ω, exponent)
+            exponent = get_leading_exponent(arg, ω, h)
+            lt = get_series_term(arg, ω, h, exponent)
             if !zero_equivalence(lt - one(Field))
                 0
             else
                 # There will never be a term with power less than 0, and the zero power term
                 # is log(T0) which is handled above with the "isone" check.
-                findfirst(i -> zero_equivalence(get_series_term(expr, ω, i)), 1:typemax(Int))
+                findfirst(i -> zero_equivalence(get_series_term(expr, ω, h, i)), 1:typemax(Int))
             end
         elseif op == exp
             0
@@ -236,32 +239,32 @@ function get_leading_exponent(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Fiel
             error("Not implemented: $op")
         end
     elseif et == ADD
-        exponent = minimum(get_leading_exponent(arg, ω) for arg in  arguments(expr))
+        exponent = minimum(get_leading_exponent(arg, ω, h) for arg in  arguments(expr))
         for i in exponent:typemax(Int)
-            sm = sum(get_series_term(arg, ω, i) for arg in arguments(expr))
+            sm = sum(get_series_term(arg, ω, h, i) for arg in arguments(expr))
             if !zero_equivalence(sm)
                 return i
             end
             i > exponent+1000 && error("This is likely due to known zero_equivalence bugs")
         end
     elseif et == MUL
-        sum(get_leading_exponent(arg, ω) for arg in arguments(expr))
+        sum(get_leading_exponent(arg, ω, h) for arg in arguments(expr))
     elseif et == POW
         args = arguments(expr)
         @assert length(args) == 2
         base, exponent = args
-        get_leading_exponent(exp(_log(base)*exponent), ω)
+        get_leading_exponent(exp(_log(base)*exponent), ω, h)
     elseif et == DIV
         args = arguments(expr)
         @assert length(args) == 2
         num, den = args
          # The naive answer is actually correct. See the get_series_term implementation for how.
-        get_leading_exponent(num, ω) - get_leading_exponent(den, ω)
+        get_leading_exponent(num, ω, h) - get_leading_exponent(den, ω, h)
     else
         error("Unknwon Expr type: $et")
     end
 end
-function get_leading_exponent(expr::Field, ω::BasicSymbolic{Field}) where Field
+function get_leading_exponent(expr::Field, ω::BasicSymbolic{Field}, h) where Field
     exprtype(ω) == SYM || throw(ArgumentError("Must expand with respect to a symbol. Got $ω"))
     zero_equivalence(expr) ? Inf : 0
 end
@@ -283,19 +286,19 @@ let
     @test zero_equivalence(x*(x+y)-x-x*y+x-x*(x+1)+x)
     @test_broken zero_equivalence(exp((x+1)*x - x*x-x)-1)
 
-    @test_broken get_leading_exponent(x^2, x) == 2
-    @test get_series_term(log(exp(x)), x, 1) == 1
-    @test get_series_term(log(exp(x)), x, 0) == 0
-    @test_broken get_series_term(log(exp(x)), x, 2) == 0
+    @test_broken get_leading_exponent(x^2, x, nothing) == 2
+    @test get_series_term(log(exp(x)), x, nothing, 1) == 1
+    @test get_series_term(log(exp(x)), x, nothing, 0) == 0
+    @test_broken get_series_term(log(exp(x)), x, nothing, 2) == 0
 
     function test(expr, leading_exp, series, sym=x)
-        lt = get_leading_exponent(expr, sym)
+        lt = get_leading_exponent(expr, sym, nothing)
         @test lt === leading_exp
         for (i,val) in enumerate(series)
-            @test get_series_term(expr, sym, lt+i-1) === val
+            @test get_series_term(expr, sym, nothing, lt+i-1) === val
         end
         for i in leading_exp-10:leading_exp-1
-            @test get_series_term(expr, sym, i) === 0
+            @test get_series_term(expr, sym, nothing, i) === 0
         end
     end
     test(x, 1, [1,0,0,0,0,0])
