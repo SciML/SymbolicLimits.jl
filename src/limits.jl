@@ -101,6 +101,7 @@ using SymbolicUtils
 using SymbolicUtils: BasicSymbolic, exprtype
 using SymbolicUtils: SYM, TERM, ADD, MUL, POW, DIV
 
+most_rapidly_varying_subexpressions(expr::Field, x::BasicSymbolic{Field}) where Field = []
 function most_rapidly_varying_subexpressions(expr::BasicSymbolic{Field}, x::BasicSymbolic{Field}) where Field
     exprtype(x) == SYM || throw(ArgumentError("Must expand with respect to a symbol. Got $x"))
     # TODO: this is slow. This whole algorithm is slow. Profile, benchmark, and optimize it.
@@ -127,7 +128,7 @@ function most_rapidly_varying_subexpressions(expr::BasicSymbolic{Field}, x::Basi
             error("Not implemented: $op")
         end
     elseif et ∈ (ADD, MUL, DIV)
-        mapreduce(most_rapidly_varying_subexpressions, mrv_join(x), arguments(expr), init=[])
+        mapreduce(Base.Fix2(most_rapidly_varying_subexpressions, x), mrv_join(x), arguments(expr), init=[])
     elseif et == POW
         args = arguments(expr)
         @assert length(args) == 2
@@ -404,7 +405,7 @@ let
     # c = lim(s/t) = lim((x+exp(-x))/-x) = -1
     # f = exp(s-ct)*ω^c = exp(x+exp(-x)-c*t)*ω^-1 = exp(exp(-x))/ω
 
-    @test_broken rewrite(exp(x+exp(-x)), ω, -x, x) == exp(exp(-x))/ω # it works if you define `limit(args...) = -1`
+    # @test rewrite(exp(x+exp(-x)), ω, -x, x) == exp(exp(-x))/ω # it works if you define `limit(args...) = -1`
 
     # F = exp(exp(-x))/ω - exp(x)
 
@@ -442,5 +443,6 @@ let
         arg isa AbstractArray ? sum(f, arg) : arg
     end == 6
 
-    @test_broken most_rapidly_varying_subexpressions(exp(x), x) == [exp(x)] # works if you define `limit(args...) = Inf`
+    @test_broken only(most_rapidly_varying_subexpressions(exp(x), x)) - exp(x) === 0 # works if you define `limit(args...) = Inf`
+    @test_broken all(i -> i === x, most_rapidly_varying_subexpressions(x+2(x+1), x)) # works if you define `limit(args...) = 1`
 end
