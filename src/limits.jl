@@ -101,74 +101,115 @@ is_exp(expr::BasicSymbolic) = exprtype(expr) == TERM && operation(expr) == exp
 
 FUEL = Ref(1000)
 
-limit(expr::Field, x::BasicSymbolic{Field}) where Field = expr
-function limit(expr::BasicSymbolic{Field}, x::BasicSymbolic{Field}) where Field
+# unused: for debugging only:
+function S(expr, x)
+    expr === x && return Set([x])
+    expr isa BasicSymbolic || return Set([])
+    t = exprtype(expr)
+    t == SYM && return Set([])
+    t in (ADD, MUL, DIV) && return mapreduce(Base.Fix2(S, x), ∪, arguments(expr))
+    t == POW && arguments(expr)[2] isa Real && isinteger(arguments(expr)[2]) && return S(arguments(expr)[1], x)
+    t == POW && error("Not implemented: POW with noninteger exponent $exponent. Transform to log/exp.")
+    t == TERM && operation(expr) == log && return S(only(arguments(expr)), x) ∪ Set([expr])
+    t == TERM && operation(expr) == exp && return S(only(arguments(expr)), x) ∪ Set([expr])
+end
+_size(expr, x) = length(S(expr, x))
+
+indent() = print('+'^((length(stacktrace())-16)÷1))
+
+limit(expr, x::BasicSymbolic{Field}) where Field = signed_limit(expr, x)[1]
+signed_limit(expr::Field, x::BasicSymbolic{Field}) where Field = expr, sign(expr)
+function signed_limit(expr::BasicSymbolic{Field}, x::BasicSymbolic{Field}) where Field
+    expr0 = expr
     if FUEL[] <= 0
         error("Fuel exhausted")
     end
     FUEL[] -= 1
 
-    println("limit($expr, $x)")
+    indent(); println("limit($expr, $x) (size: $(_size(expr, x)))")
 
-    # expr === x && return Inf
+    expr === x && (indent(); println("<"); return (Inf, 1))
+    expr + x === 0 && (indent(); println("<"); return (-Inf, -1))
+    expr - x/log(x) === 0 && (indent(); println("<"); return (Inf, -1))
+    expr - exp(x) === 0 && (indent(); println("<"); return (Inf, -1))
+    expr - exp(x)/log(x) === 0 && (indent(); println("<"); return (Inf, -1))
+    expr - exp(exp(x)) === 0 && (indent(); println("<"); return (Inf, -1))
+    expr - exp(exp(x))/log(x) === 0 && (indent(); println("<"); return (Inf, -1))
 
-    println("A")
+    indent(); println("A")
     Ω = most_rapidly_varying_subexpressions(expr, x)
-    println("B")
-    isempty(Ω) && return expr
-    println("C")
+    indent(); println("B")
+    isempty(Ω) && (indent(); println("<"); return (expr, sign(expr)))
+    #indent(); println("C")
     ω_val = last(Ω)
     ω_sym = SymbolicUtils.Sym{Field}(Symbol(:ω, gensym()))
 
-    println("D")
+    indent(); println("D")
     while !is_exp(ω_val) # equivalent to x ∈ Ω
-        println("D1")
+        #indent(); println("D1")
         expr = recursive(expr) do f, ex
             ex isa BasicSymbolic{Field} || return ex
             exprtype(ex) == SYM && return ex === x ? exp(x) : ex
             operation(ex)(f.(arguments(ex))...)
         end
-        println("D2")
+        #indent(); println("D2")
         expr = log_exp_simplify(expr)
-        println("D3")
-        Ω = most_rapidly_varying_subexpressions(expr, x)
-        println("D4")
-        ω_val = last(mvr)
-        println("D5")
+        indent(); println("D3")
+        # Ω = most_rapidly_varying_subexpressions(expr, x) NO! this line could lead to infinite recursion
+        Ω = [log_exp_simplify(recursive(expr) do f, ex
+                ex isa BasicSymbolic{Field} || return ex
+                exprtype(ex) == SYM && return ex === x ? exp(x) : ex
+                operation(ex)(f.(arguments(ex))...)
+            end) for expr in Ω]
+        #indent(); println("D4")
+        ω_val = last(Ω)
+        #indent(); println("D5")
     end
-    println("E")
+
+    indent(); println((expr, ω_val))
+
+    # indent(); println("E")
 
     # normalize ω to approach zero (it is already structurally positive)
-    @assert operator(ω_val) == exp
+    @assert operation(ω_val) == exp
     h = only(arguments(ω_val))
     lm = limit(h, x)
-    @assert isinf(im)
-    if lim > 0
+    @assert isinf(lm)
+    if lm > 0
         h = -h
         ω_val = exp(h)
     end
 
+    indent(); println((expr, h, ω_val))
+
+    # indent(); println("F")
+
     expr2 = recursive(expr) do f, ex
         ex isa BasicSymbolic{Field} || return ex
         exprtype(ex) == SYM && return ex
-        ex ∈ Ω && return rewrite(ex, ω, h, x)
-        operator(ex)(f.(arguments(ex))...)
+        # ex ∈ Ω && return rewrite(ex, ω, h, x) # ∈ uses symbolic equality which is iffy
+        any(x -> zero_equivalence(x - ex), Ω) && return rewrite(ex, ω_sym, h, x)
+        operation(ex)(f.(arguments(ex))...)
     end
 
-    println("F")
+    indent(); println("G, $expr2")
 
     exponent = get_leading_exponent(expr2, ω_sym, h)
     leading_coefficient = get_series_term(expr2, ω_sym, h, exponent)
-    leading_coefficient = limit(leading_coefficient, x)
-    if exponent < 0
+    indent(); println("H, $exponent, $leading_coefficient")
+    leading_coefficient, lc_sign = signed_limit(leading_coefficient, x)
+    indent(); println("I, $exponent, $leading_coefficient")
+    res = if exponent < 0
         # This will fail if leading_coefficient is not scalar, oh well, we'll solve that error later. Inf sign kinda matters.
-        copysign(Inf, leading_coefficient)
+        copysign(Inf, lc_sign), lc_sign
     elseif exponent > 0
         # This will fail if leading_coefficient is not scalar, oh well, we'll solve that error later. We can always drop zero sign
-        copysign(zero(Field), leading_coefficient)
+        copysign(zero(Field), lc_sign), lc_sign
     else
-        leading_coefficient
+        leading_coefficient, lc_sign
     end
+    indent(); println("< ($expr0 -> $res)")
+    res
 end
 
 function recursive(f, args...)
@@ -182,6 +223,7 @@ function log_exp_simplify(expr::BasicSymbolic)
     exprtype(expr) == SYM && return expr
     exprtype(expr) == TERM && operation(expr) == log || return operation(expr)(log_exp_simplify.(arguments(expr))...)
     arg = log_exp_simplify(only(arguments(expr)))
+    # TODO: return _log(arg)
     arg isa BasicSymbolic && exprtype(arg) == TERM && operation(arg) == exp || return log(arg)
     only(arguments(arg))
 end
@@ -189,6 +231,7 @@ end
 most_rapidly_varying_subexpressions(expr::Field, x::BasicSymbolic{Field}) where Field = []
 function most_rapidly_varying_subexpressions(expr::BasicSymbolic{Field}, x::BasicSymbolic{Field}) where Field
     exprtype(x) == SYM || throw(ArgumentError("Must expand with respect to a symbol. Got $x"))
+    indent(); println("most_rapidly_varying_subexpressions($expr, $x), (size: $(_size(expr, x)))")
     # TODO: this is slow. This whole algorithm is slow. Profile, benchmark, and optimize it.
     et = exprtype(expr)
     if et == SYM
@@ -228,12 +271,35 @@ function most_rapidly_varying_subexpressions(expr::BasicSymbolic{Field}, x::Basi
     end
 end
 
+is_exp_or_x(expr::BasicSymbolic, x::BasicSymbolic) =
+    expr === x || exprtype(expr) == TERM && operation(expr) == exp
+
 """
     f ≺ g iff log(f)/log(g) -> 0
 """
 function compare_varience_rapidity(expr1, expr2, x)
-    println("compare_varience_rapidity($expr1, $expr2, $x)")
-    # expr1 === expr2 && return 0 # maybe add for perf / termination
+    indent(); println("compare_varience_rapidity($expr1, $expr2, $x)")
+    @assert is_exp_or_x(expr1, x)
+    @assert is_exp_or_x(expr2, x)
+    # expr1 === expr2 && return 0 # both x (or both same exp, either way okay, but for sure we cover the both x case)
+    # expr1 === x && expr2 !== x && return compare_varience_rapidity(expr2, expr1, x)
+    # @assert expr1 !== x
+    # if expr2 !== x
+    #     # they are both exp's, so it's safe (i.e. not a larger sub-expression) to call
+    #     lim = limit(only(arguments(expr1))/only(arguments(expr2)), x) # equivalent to limit(_log(expr1)/_log(expr2), x) = limit(log(expr1)/log(expr2), x)
+    # else
+    #     s = only(arguments(expr1))
+    #     if _occursin(ln(x), s)
+    #         # also safe
+    #         lim = limit(s/ln(x), x)
+    #     else
+    #     s/ln(x)
+    # end
+    # iszero(lim) && return -1
+    # isfinite(lim) && return 0
+    # isinf(lim) && return 1
+    # #indent(); println("compare_varience_rapidity($expr1, $expr2, $x)")
+
     lim = limit(_log(expr1)/_log(expr2), x)
     iszero(lim) && return -1
     isfinite(lim) && return 0
@@ -457,7 +523,7 @@ end
 
 _log(x) = _log(x, nothing, nothing)
 _log(x, ω, h) = log(x)
-function _log(x::BasicSymbolic, ω::BasicSymbolic, h)
+function _log(x::BasicSymbolic, ω, h)
     exprtype(x) == TERM && operation(x) == exp && return only(arguments(x))
     x === ω && return h
     log(x)
@@ -466,7 +532,14 @@ end
 zero_equivalence(expr) = iszero(simplify(expr, expand=true)) === true
 
 using Test
+
 let
+    @syms x::Real
+    @test limit(-1/x, x) === 0
+    @test limit(-x / log(x), x) === -Inf
+end
+
+false && let
     @syms x::Real y::Real ω::Real
     @test zero_equivalence(x*(x+y)-x-x*y+x-x*(x+1)+x)
     @test_broken zero_equivalence(exp((x+1)*x - x*x-x)-1)
