@@ -92,6 +92,85 @@ end
 # expansion of `g` in terms of `x`, how do we get a series expansion of `log(g)` in terms of
 # `x`?
 
+using SymbolicUtils
+using SymbolicUtils: BasicSymbolic, exprtype
+using SymbolicUtils: SYM, TERM, ADD, MUL, POW, DIV
+
+is_exp(expr) = false
+is_exp(expr::BasicSymbolic) = exprtype(expr) == TERM && operation(expr) == exp
+
+FUEL = Ref(1000)
+
+limit(expr::Field, x::BasicSymbolic{Field}) where Field = expr
+function limit(expr::BasicSymbolic{Field}, x::BasicSymbolic{Field}) where Field
+    if FUEL[] <= 0
+        error("Fuel exhausted")
+    end
+    FUEL[] -= 1
+
+    println("limit($expr, $x)")
+
+    # expr === x && return Inf
+
+    println("A")
+    Ω = most_rapidly_varying_subexpressions(expr, x)
+    println("B")
+    isempty(Ω) && return expr
+    println("C")
+    ω_val = last(Ω)
+    ω_sym = SymbolicUtils.Sym{Field}(Symbol(:ω, gensym()))
+
+    println("D")
+    while !is_exp(ω_val) # equivalent to x ∈ Ω
+        println("D1")
+        expr = recursive(expr) do f, ex
+            ex isa BasicSymbolic{Field} || return ex
+            exprtype(ex) == SYM && return ex === x ? exp(x) : ex
+            operation(ex)(f.(arguments(ex))...)
+        end
+        println("D2")
+        expr = log_exp_simplify(expr)
+        println("D3")
+        Ω = most_rapidly_varying_subexpressions(expr, x)
+        println("D4")
+        ω_val = last(mvr)
+        println("D5")
+    end
+    println("E")
+
+    # normalize ω to approach zero (it is already structurally positive)
+    @assert operator(ω_val) == exp
+    h = only(arguments(ω_val))
+    lm = limit(h, x)
+    @assert isinf(im)
+    if lim > 0
+        h = -h
+        ω_val = exp(h)
+    end
+
+    expr2 = recursive(expr) do f, ex
+        ex isa BasicSymbolic{Field} || return ex
+        exprtype(ex) == SYM && return ex
+        ex ∈ Ω && return rewrite(ex, ω, h, x)
+        operator(ex)(f.(arguments(ex))...)
+    end
+
+    println("F")
+
+    exponent = get_leading_exponent(expr2, ω_sym, h)
+    leading_coefficient = get_series_term(expr2, ω_sym, h, exponent)
+    leading_coefficient = limit(leading_coefficient, x)
+    if exponent < 0
+        # This will fail if leading_coefficient is not scalar, oh well, we'll solve that error later. Inf sign kinda matters.
+        copysign(Inf, leading_coefficient)
+    elseif exponent > 0
+        # This will fail if leading_coefficient is not scalar, oh well, we'll solve that error later. We can always drop zero sign
+        copysign(zero(Field), leading_coefficient)
+    else
+        leading_coefficient
+    end
+end
+
 function recursive(f, args...)
     g(args...) = f(g, args...)
     g(args...)
@@ -106,10 +185,6 @@ function log_exp_simplify(expr::BasicSymbolic)
     arg isa BasicSymbolic && exprtype(arg) == TERM && operation(arg) == exp || return log(arg)
     only(arguments(arg))
 end
-
-using SymbolicUtils
-using SymbolicUtils: BasicSymbolic, exprtype
-using SymbolicUtils: SYM, TERM, ADD, MUL, POW, DIV
 
 most_rapidly_varying_subexpressions(expr::Field, x::BasicSymbolic{Field}) where Field = []
 function most_rapidly_varying_subexpressions(expr::BasicSymbolic{Field}, x::BasicSymbolic{Field}) where Field
@@ -132,7 +207,7 @@ function most_rapidly_varying_subexpressions(expr::BasicSymbolic{Field}, x::Basi
             if isfinite(limit(arg, x))
                 most_rapidly_varying_subexpressions(arg, x)
             else
-                mrv_join(x)(most_rapidly_varying_subexpressions(arg, x), [expr])
+                mrv_join(x)([expr], most_rapidly_varying_subexpressions(arg, x)) # ensure that the inner most exprs stay last
             end
         else
             error("Not implemented: $op")
@@ -157,6 +232,8 @@ end
     f ≺ g iff log(f)/log(g) -> 0
 """
 function compare_varience_rapidity(expr1, expr2, x)
+    println("compare_varience_rapidity($expr1, $expr2, $x)")
+    # expr1 === expr2 && return 0 # maybe add for perf / termination
     lim = limit(_log(expr1)/_log(expr2), x)
     iszero(lim) && return -1
     isfinite(lim) && return 0
