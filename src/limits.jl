@@ -92,6 +92,11 @@ end
 # expansion of `g` in terms of `x`, how do we get a series expansion of `log(g)` in terms of
 # `x`?
 
+function recursive(f, args...)
+    g(args...) = f(g, args...)
+    g(args...)
+end
+
 using SymbolicUtils
 using SymbolicUtils: BasicSymbolic, exprtype
 using SymbolicUtils: SYM, TERM, ADD, MUL, POW, DIV
@@ -363,4 +368,8 @@ let
     test(x, 1, [1,0,0,0,0,0])
     test(x^2, 2, [1,0,0,0,0,0])
     test(x^2+x, 1, [1,1,0,0,0,0])
+
+    @test recursive([1,[2,3]]) do f, arg
+        arg isa AbstractArray ? sum(f, arg) : arg
+    end == 6
 end
