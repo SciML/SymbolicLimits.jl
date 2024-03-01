@@ -1,3 +1,7 @@
+# STATUS: WIP
+
+This project contains known correctness bugs.
+
 # SymbolicLimits
 
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://LilithHafner.github.io/SymbolicLimits.jl/stable/)
