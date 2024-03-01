@@ -453,9 +453,9 @@ function get_series_term(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field}, h
         sm = zero(Field)
         for j in num_exponent:i+den_exponent
             t_num = get_series_term(num, ω, h, j)
-            exponent = i-j
+            exponent = i+den_exponent-j
             # TODO: refactor this to share code for the "sum of powers of a series" form
-            sm2 = one(Field) # k = 0 adds one to the sum
+            sm2 = exponent == 0 ? one(Field) : zero(Field) # k = 0 adds one to the sum
             for k in 1:exponent
                 term = exponent ÷ k
                 if term * k == exponent # integral
@@ -561,8 +561,8 @@ let
     @test limit(x^7/exp(x), x) == 0
     @test limit(x^70000/exp(x), x) == 0
     @test !zero_equivalence(get_series_term(log(x/ω), ω, -x, 0) - log(x / ω))
-    @test_broken get_series_term(1 / ω, ω, -x, 0) == 0
-    @test_broken limit(x^2/(x^2+log(x)), x) == 1
+    @test get_series_term(1 / ω, ω, -x, 0) == 0
+    @test limit(x^2/(x^2+log(x)), x) == 1
     @test_broken zero_equivalence(1.0 - exp(-x + exp(log(x))))
     @test_broken limit(x + log(x) - exp(exp(1 / x + log(log(x)))), x) == 0
     @test_broken limit(log(log(x*exp(x*exp(x))+1))-exp(exp(log(log(x))+1/x)), x) == 0
