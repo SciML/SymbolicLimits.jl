@@ -116,7 +116,7 @@ end
 _size(expr, x) = length(S(expr, x))
 
 function indent()
-    depth = length(backtrace())-40
+    depth = length(backtrace())-39
     if depth < 20
         print('+'^(depth÷1))
         true
@@ -552,6 +552,7 @@ let
     @test limit(-1/x, x) === 0
     @test limit(-x / log(x), x) === -Inf
     @test only(mrv_join(x)([exp(x)], [x])) - exp(x) === 0
+    @test_broken limit(exp(x+exp(-x))-exp(x), x) == 1
 end
 
 false && let
