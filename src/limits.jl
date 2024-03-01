@@ -561,6 +561,9 @@ let
     @test only(mrv_join(x)([exp(x)], [x])) - exp(x) === 0
     @test signed_limit(exp(exp(-x))-1, x) == (0, 1)
     @test limit(exp(x+exp(-x))-exp(x), x) == 1
+    @test limit(x^7/exp(x), x) == 0
+    @test limit(x^70000/exp(x), x) == 0
+    @test_broken limit(log(log(x*exp(x*exp(x))+1))-exp(exp(log(log(x))+1/x)))
 end
 
 false && let
