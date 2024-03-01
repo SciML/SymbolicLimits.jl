@@ -1,9 +1,9 @@
 # Paper: https://www.cybertester.com/data/gruntz.pdf (1996)
 
-# The limit of a continuous function `f` (e.g. all rational functions) is the function
+# The limit_inf of a continuous function `f` (e.g. all rational functions) is the function
 # applied to the limits `y...` of its arguments (provided `f(y...)`` exists)
 
-# Generations of limit algorithms:
+# Generations of limit_inf algorithms:
 
 # 1) heuristic
 # 2) series
@@ -63,16 +63,16 @@ function indent()
     end
 end
 
-limit(expr, x::BasicSymbolic{Field}) where Field = signed_limit(expr, x)[1]
-signed_limit(expr::Field, x::BasicSymbolic{Field}) where Field = expr, sign(expr)
-function signed_limit(expr::BasicSymbolic{Field}, x::BasicSymbolic{Field}) where Field
+limit_inf(expr, x::BasicSymbolic{Field}) where Field = signed_limit_inf(expr, x)[1]
+signed_limit_inf(expr::Field, x::BasicSymbolic{Field}) where Field = expr, sign(expr)
+function signed_limit_inf(expr::BasicSymbolic{Field}, x::BasicSymbolic{Field}) where Field
     expr0 = expr
     if FUEL[] <= 0 && DEBUG[]
         error("Fuel exhausted")
     end
     FUEL[] -= 1
 
-    indent() && println("limit($expr, $x) (size: $(_size(expr, x)))")
+    indent() && println("limit_inf($expr, $x) (size: $(_size(expr, x)))")
 
     expr === x && (indent() && println("<"); return (Inf, 1))
 
@@ -111,7 +111,7 @@ function signed_limit(expr::BasicSymbolic{Field}, x::BasicSymbolic{Field}) where
     # normalize ω to approach zero (it is already structurally positive)
     @assert operation(ω_val) == exp
     h = only(arguments(ω_val))
-    lm = limit(h, x)
+    lm = limit_inf(h, x)
     @assert isinf(lm)
     if lm > 0
         h = -h
@@ -139,7 +139,7 @@ function signed_limit(expr::BasicSymbolic{Field}, x::BasicSymbolic{Field}) where
     exponent === Inf && (indent() && println("< $expr0 -> (0, 0)"); return (0, 0)) # TODO: track sign
     leading_coefficient = get_series_term(expr2, ω_sym, h, exponent)
     indent() && println("H, $exponent, $leading_coefficient")
-    leading_coefficient, lc_sign = signed_limit(leading_coefficient, x)
+    leading_coefficient, lc_sign = signed_limit_inf(leading_coefficient, x)
     indent() && println("I, $exponent, $leading_coefficient")
     res = if exponent < 0
         # This will fail if leading_coefficient is not scalar, oh well, we'll solve that error later. Inf sign kinda matters.
@@ -202,7 +202,7 @@ function most_rapidly_varying_subexpressions(expr::BasicSymbolic{Field}, x::Basi
         elseif op == exp
             # indent() && println("XXXXXXXXX")
             arg = only(arguments(expr))
-            res = if isfinite(limit(arg, x))
+            res = if isfinite(limit_inf(arg, x))
                 # indent() && println("Finite")
                 most_rapidly_varying_subexpressions(arg, x)
             else
@@ -247,12 +247,12 @@ function compare_varience_rapidity(expr1, expr2, x)
     # @assert expr1 !== x
     # if expr2 !== x
     #     # they are both exp's, so it's safe (i.e. not a larger sub-expression) to call
-    #     lim = limit(only(arguments(expr1))/only(arguments(expr2)), x) # equivalent to limit(_log(expr1)/_log(expr2), x) = limit(log(expr1)/log(expr2), x)
+    #     lim = limit_inf(only(arguments(expr1))/only(arguments(expr2)), x) # equivalent to limit_inf(_log(expr1)/_log(expr2), x) = limit_inf(log(expr1)/log(expr2), x)
     # else
     #     s = only(arguments(expr1))
     #     if _occursin(ln(x), s)
     #         # also safe
-    #         lim = limit(s/ln(x), x)
+    #         lim = limit_inf(s/ln(x), x)
     #     else
     #     s/ln(x)
     # end
@@ -261,12 +261,12 @@ function compare_varience_rapidity(expr1, expr2, x)
     # isinf(lim) && return 1
     # #indent() && println("compare_varience_rapidity($expr1, $expr2, $x)")
 
-    lim = limit(_log(expr1)/_log(expr2), x)
+    lim = limit_inf(_log(expr1)/_log(expr2), x)
     # indent() && println("LIM: ", lim)
     iszero(lim) && return -1
     isfinite(lim) && return 0
     isinf(lim) && return 1
-    error("Unexpected limit result: $lim") # e.g. if it depends on other variables?
+    error("Unexpected limit_inf result: $lim") # e.g. if it depends on other variables?
 end
 
 function mrv_join(x)
@@ -295,7 +295,7 @@ function rewrite(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field}, h::BasicS
 
     s = only(arguments(expr))
     t = h
-    c = limit(s/t, x)
+    c = limit_inf(s/t, x)
     @assert isfinite(c) && !iszero(c)
     exp(s-c*t)*ω^c # I wonder how this works with multiple variables...
 end

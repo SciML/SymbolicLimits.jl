@@ -103,8 +103,12 @@ limit(exp(csc(x))/exp(cot(x)), x, 0) (1)
     end
 
     @testset "Tests that failed during initial development phase 2" begin
-        @eval SymbolicLimits.Internals using Test
-        @eval SymbolicLimits.Internals begin
+        let limit = SymbolicLimits.limit_inf,
+            get_series_term = SymbolicLimits.get_series_term,
+            mrv_join = SymbolicLimits.mrv_join,
+            zero_equivalence = SymbolicLimits.zero_equivalence,
+            signed_limit = SymbolicLimits.signed_limit_inf
+
             @syms x::Real ω::Real
             @test limit(-1/x, x) === 0
             @test limit(-x / log(x), x) === -Inf
