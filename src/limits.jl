@@ -561,7 +561,7 @@ let
     @test limit(x^7/exp(x), x) == 0
     @test limit(x^70000/exp(x), x) == 0
     @test !zero_equivalence(get_series_term(log(x/ω), ω, -x, 0) - log(x / ω))
-    @test_broken get_series_term(((1 / ω)^2) / (x + (1 / ω)^2), ω, -x, 0) === get_series_term(1 / ((x + 1 / (ω^2))*(ω^2)), ω, -x, 0)
+    @test_broken get_series_term(1 / ω^2, ω, -x, 1) === get_series_term((1 / ω)^2, ω, -x, 1)
     @test_broken limit(x^2/(x^2+log(x)), x) == 1
     @test_broken zero_equivalence(1.0 - exp(-x + exp(log(x))))
     @test_broken limit(x + log(x) - exp(exp(1 / x + log(log(x)))), x) == 0
