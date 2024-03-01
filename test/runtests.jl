@@ -24,15 +24,15 @@ limit(exp(csc(x))/exp(cot(x)), x, 0) (1)
     end
 
     @testset "Tests that failed during initial development phase 1" begin
-        false && let
+        let
             @syms x::Real y::Real ω::Real
-            @test zero_equivalence(x*(x+y)-x-x*y+x-x*(x+1)+x)
-            @test_broken zero_equivalence(exp((x+1)*x - x*x-x)-1)
+            @test SymbolicLimits.zero_equivalence(x*(x+y)-x-x*y+x-x*(x+1)+x)
+            @test_broken SymbolicLimits.zero_equivalence(exp((x+1)*x - x*x-x)-1)
 
-            @test get_leading_exponent(x^2, x, nothing) == 2
-            @test get_series_term(log(exp(x)), x, nothing, 1) == 1
-            @test get_series_term(log(exp(x)), x, nothing, 0) == 0
-            @test_broken get_series_term(log(exp(x)), x, nothing, 2) == 0 # This is okay to be broken because exp(ω) is more rapidly varying than ω.
+            @test SymbolicLimits.get_leading_exponent(x^2, x, nothing) == 2
+            @test SymbolicLimits.get_series_term(log(exp(x)), x, nothing, 1) == 1
+            @test SymbolicLimits.get_series_term(log(exp(x)), x, -x, 0) == 0
+            @test SymbolicLimits.get_series_term(log(exp(x)), x, nothing, 2) == 0
 
             # F = exp(x+exp(-x))-exp(x)
             # Ω = {exp(x + exp(-x)), exp(x), exp(-x)}
@@ -50,7 +50,7 @@ limit(exp(csc(x))/exp(cot(x)), x, 0) (1)
             # c = lim(s/t) = lim((x+exp(-x))/-x) = -1
             # f = exp(s-ct)*ω^c = exp(x+exp(-x)-c*t)*ω^-1 = exp(exp(-x))/ω
 
-            # @test rewrite(exp(x+exp(-x)), ω, -x, x) == exp(exp(-x))/ω # it works if you define `limit(args...) = -1`
+            @test SymbolicLimits.zero_equivalence(SymbolicLimits.rewrite(exp(x+exp(-x)), ω, -x, x) - exp(exp(-x))/ω) # it works if you define `limit(args...) = -1`
 
             # F = exp(exp(-x))/ω - exp(x)
 
@@ -66,39 +66,39 @@ limit(exp(csc(x))/exp(cot(x)), x, 0) (1)
 
             # F = exp(ω)/ω - 1/ω
             let F = exp(ω)/ω - 1/ω, h=-x
-                @test get_leading_exponent(F, ω, h) == 0
-                @test get_series_term(F, ω, h, 0) == 1 # the correct final answer
+                @test SymbolicLimits.get_leading_exponent(F, ω, h) == 0
+                @test SymbolicLimits.get_series_term(F, ω, h, 0) == 1 # the correct final answer
             end
 
             function test(expr, leading_exp, series, sym=x)
-                lt = get_leading_exponent(expr, sym, nothing)
+                lt = SymbolicLimits.get_leading_exponent(expr, sym, nothing)
                 @test lt === leading_exp
                 for (i,val) in enumerate(series)
-                    @test get_series_term(expr, sym, nothing, lt+i-1) === val
+                    @test SymbolicLimits.get_series_term(expr, sym, nothing, lt+i-1) === val
                 end
                 for i in leading_exp-10:leading_exp-1
-                    @test get_series_term(expr, sym, nothing, i) === 0
+                    @test SymbolicLimits.get_series_term(expr, sym, nothing, i) === 0
                 end
             end
             test(x, 1, [1,0,0,0,0,0])
             test(x^2, 2, [1,0,0,0,0,0])
             test(x^2+x, 1, [1,1,0,0,0,0])
 
-            @test recursive([1,[2,3]]) do f, arg
+            @test SymbolicLimits.recursive([1,[2,3]]) do f, arg
                 arg isa AbstractArray ? sum(f, arg) : arg
             end == 6
 
-            @test_broken only(most_rapidly_varying_subexpressions(exp(x), x)) - exp(x) === 0 # works if you define `limit(args...) = Inf`
-            @test_broken all(i -> i === x, most_rapidly_varying_subexpressions(x+2(x+1), x)) # works if you define `limit(args...) = 1`
+            @test only(SymbolicLimits.most_rapidly_varying_subexpressions(exp(x), x)) - exp(x) === 0 # works if you define `limit(args...) = Inf`
+            @test all(i -> i === x, SymbolicLimits.most_rapidly_varying_subexpressions(x+2(x+1), x)) # works if you define `limit(args...) = 1`
 
-            @test log_exp_simplify(x) === x
-            @test log_exp_simplify(exp(x)) === exp(x)
-            @test log_exp_simplify(exp(log(x))) === exp(log(x))
-            @test log_exp_simplify(log(exp(x))) === x
-            @test log_exp_simplify(log(exp(log(x)))) === log(x)
-            @test (log_exp_simplify(log(exp(1+x))) - (1+x)) === 0
-            @test log_exp_simplify(log(log(exp(exp(x))))) === x
-            @test log_exp_simplify(log(exp(log(exp(x))))) === x
+            @test SymbolicLimits.log_exp_simplify(x) === x
+            @test SymbolicLimits.zero_equivalence(SymbolicLimits.log_exp_simplify(exp(x)) - exp(x))
+            @test SymbolicLimits.zero_equivalence(SymbolicLimits.log_exp_simplify(exp(log(x))) - exp(log(x)))
+            @test SymbolicLimits.log_exp_simplify(log(exp(x))) === x
+            @test SymbolicLimits.zero_equivalence(SymbolicLimits.log_exp_simplify(log(exp(log(x)))) - log(x))
+            @test (SymbolicLimits.log_exp_simplify(log(exp(1+x))) - (1+x)) === 0
+            @test SymbolicLimits.log_exp_simplify(log(log(exp(exp(x))))) === x
+            @test SymbolicLimits.log_exp_simplify(log(exp(log(exp(x))))) === x
         end
     end
 
