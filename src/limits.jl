@@ -558,7 +558,7 @@ let
     @test limit(exp(x+exp(-x))-exp(x), x) == 1
     @test limit(x^7/exp(x), x) == 0
     @test limit(x^70000/exp(x), x) == 0
-    @test get_series_term(log(x/ω), ω, -x, 0) - log(x / ω) !== 0
+    @test !zero_equivalence(get_series_term(log(x/ω), ω, -x, 0) - log(x / ω))
     @test_broken limit(log(log(x*exp(x*exp(x))+1))-exp(exp(log(log(x))+1/x)), x) == 0
 end
 
