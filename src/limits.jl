@@ -116,7 +116,7 @@ end
 _size(expr, x) = length(S(expr, x))
 
 function indent()
-    depth = length(stacktrace())-16
+    depth = length(backtrace())-40
     if depth < 20
         print('+'^(depth÷1))
         true
