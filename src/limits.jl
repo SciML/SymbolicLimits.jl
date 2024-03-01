@@ -563,6 +563,7 @@ let
     @test !zero_equivalence(get_series_term(log(x/ω), ω, -x, 0) - log(x / ω))
     @test get_series_term(1 / ω, ω, -x, 0) == 0
     @test limit(x^2/(x^2+log(x)), x) == 1
+    @test_broken get_series_term(exp(ω), ω, -x, 2) == 1/2
     @test_broken zero_equivalence(1.0 - exp(-x + exp(log(x))))
     @test_broken limit(x + log(x) - exp(exp(1 / x + log(log(x)))), x) == 0
     @test_broken limit(log(log(x*exp(x*exp(x))+1))-exp(exp(log(log(x))+1/x)), x) == 0
