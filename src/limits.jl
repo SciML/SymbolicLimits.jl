@@ -370,7 +370,7 @@ function get_series_term(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field}, h
             exponent = get_leading_exponent(arg, ω, h)
             t0 = get_series_term(arg, ω, h, exponent)
             if i == 0
-                _log(t0*ω^exponent, ω, h)
+                _log(t0) + h*exponent # _log(t0 * ω^exponent), but get the cancelation right.
             else
                 # TODO: refactor this to share code for the "sum of powers of a series" form
                 sm = zero(Field)
@@ -558,7 +558,7 @@ let
     @test limit(exp(x+exp(-x))-exp(x), x) == 1
     @test limit(x^7/exp(x), x) == 0
     @test limit(x^70000/exp(x), x) == 0
-    @test_broken get_series_term(log(x/ω), ω, -x, 0) - log(x / ω) != 0
+    @test get_series_term(log(x/ω), ω, -x, 0) - log(x / ω) !== 0
     @test_broken limit(log(log(x*exp(x*exp(x))+1))-exp(exp(log(log(x))+1/x)), x) == 0
 end
 
