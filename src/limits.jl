@@ -188,15 +188,16 @@ function signed_limit(expr::BasicSymbolic{Field}, x::BasicSymbolic{Field}) where
 
     indent() && println("F: ", (expr, h, ω_val, Ω))
 
-    expr2 = recursive(expr) do f, ex # This traverses from largest to smallest, as required
-        println(ex)
+    # This ensures that mrv(expr2) == {ω}. TODO: do we need to do top-down with recursion even after replacement?
+    expr2 = recursive(expr) do f, ex # This traverses from largest to smallest, as required?
         ex isa BasicSymbolic{Field} || return ex
-        println("A")
         exprtype(ex) == SYM && return ex
-        println("B")
         # ex ∈ Ω && return rewrite(ex, ω, h, x) # ∈ uses symbolic equality which is iffy
-        any(x -> zero_equivalence(x - ex), Ω) && return rewrite(ex, ω_sym, h, x)
-        println("C")
+        if any(x -> zero_equivalence(x - ex), Ω)
+            ex = rewrite(ex, ω_sym, h, x)
+            ex isa BasicSymbolic{Field} || return ex
+            exprtype(ex) == SYM && return ex
+        end
         operation(ex)(f.(arguments(ex))...)
     end
 
@@ -559,7 +560,7 @@ let
     @test limit(-x / log(x), x) === -Inf
     @test only(mrv_join(x)([exp(x)], [x])) - exp(x) === 0
     @test signed_limit(exp(exp(-x))-1, x) == (0, 1)
-    @test_broken limit(exp(x+exp(-x))-exp(x), x) == 1
+    @test limit(exp(x+exp(-x))-exp(x), x) == 1
 end
 
 false && let
