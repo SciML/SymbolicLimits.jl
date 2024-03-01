@@ -234,6 +234,18 @@ function log_exp_simplify(expr::BasicSymbolic)
     only(arguments(arg))
 end
 
+
+"""cancels log(exp(x)) and exp(log(x)), the latter may extend the domain"""
+strong_log_exp_simplify(expr) = expr
+function strong_log_exp_simplify(expr::BasicSymbolic)
+    exprtype(expr) == SYM && return expr
+    exprtype(expr) == TERM && operation(expr) in (log, exp) || return operation(expr)(strong_log_exp_simplify.(arguments(expr))...)
+    arg = strong_log_exp_simplify(only(arguments(expr)))
+    # TODO: return _log(arg)
+    arg isa BasicSymbolic && exprtype(arg) == TERM && operation(arg) in (log, exp) && operation(arg) != operation(expr) || return operation(expr)(arg)
+    only(arguments(arg))
+end
+
 most_rapidly_varying_subexpressions(expr::Field, x::BasicSymbolic{Field}) where Field = []
 function most_rapidly_varying_subexpressions(expr::BasicSymbolic{Field}, x::BasicSymbolic{Field}) where Field
     exprtype(x) == SYM || throw(ArgumentError("Must expand with respect to a symbol. Got $x"))
@@ -547,7 +559,8 @@ function _log(x::BasicSymbolic, ω, h)
     log(x)
 end
 
-zero_equivalence(expr) = iszero(simplify(expr, expand=true)) === true
+"""Is `expr` zero on its domain?"""
+zero_equivalence(expr) = iszero(simplify(strong_log_exp_simplify(expr), expand=true)) === true
 
 using Test
 
@@ -564,9 +577,9 @@ let
     @test get_series_term(1 / ω, ω, -x, 0) == 0
     @test limit(x^2/(x^2+log(x)), x) == 1
     @test get_series_term(exp(ω), ω, -x, 2) == 1/2
-    @test_broken zero_equivalence(1.0 - exp(-x + exp(log(x))))
-    @test_broken limit(x + log(x) - exp(exp(1 / x + log(log(x)))), x) == 0
-    @test_broken limit(log(log(x*exp(x*exp(x))+1))-exp(exp(log(log(x))+1/x)), x) == 0
+    @test zero_equivalence(1.0 - exp(-x + exp(log(x)))) # sus b.c. domain is not R, but okay
+    @test limit(x + log(x) - exp(exp(1 / x + log(log(x)))), x) == 0
+    @test limit(log(log(x*exp(x*exp(x))+1))-exp(exp(log(log(x))+1/x)), x) == 0
 end
 
 false && let
