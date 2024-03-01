@@ -490,7 +490,7 @@ function get_leading_exponent(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Fiel
             arg = only(arguments(expr))
             exponent = get_leading_exponent(arg, ω, h)
             lt = get_series_term(arg, ω, h, exponent)
-            if !zero_equivalence(lt - one(Field))
+            if !zero_equivalence(lt - one(Field)) # Is this right? Should we just use the generic loop from below for all cases?
                 0
             else
                 # There will never be a term with power less than 0, and the zero power term
