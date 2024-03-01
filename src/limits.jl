@@ -137,12 +137,6 @@ function signed_limit(expr::BasicSymbolic{Field}, x::BasicSymbolic{Field}) where
     indent() && println("limit($expr, $x) (size: $(_size(expr, x)))")
 
     expr === x && (indent() && println("<"); return (Inf, 1))
-    expr + x === 0 && (indent() && println("<"); return (-Inf, -1))
-    expr - x/log(x) === 0 && (indent() && println("<"); return (Inf, -1))
-    expr - exp(x) === 0 && (indent() && println("<"); return (Inf, -1))
-    expr - exp(x)/log(x) === 0 && (indent() && println("<"); return (Inf, -1))
-    expr - exp(exp(x)) === 0 && (indent() && println("<"); return (Inf, -1))
-    expr - exp(exp(x))/log(x) === 0 && (indent() && println("<"); return (Inf, -1))
 
     indent() && println("A")
     Ω = most_rapidly_varying_subexpressions(expr, x)
