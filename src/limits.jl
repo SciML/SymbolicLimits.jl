@@ -116,9 +116,9 @@ end
 _size(expr, x) = length(S(expr, x))
 
 function indent()
-    depth = length(backtrace())-39
-    if depth < 20
-        print('+'^(depth÷1))
+    depth = length(backtrace())-36
+    if depth < 12
+        print(' '^(depth÷1))
         true
     else
         false
@@ -162,19 +162,19 @@ function signed_limit(expr::BasicSymbolic{Field}, x::BasicSymbolic{Field}) where
         end
         #indent() && println("D2")
         expr = log_exp_simplify(expr)
-        indent() && println("D3", Ω)
+        indent() && println("D3, ", Ω)
         # Ω = most_rapidly_varying_subexpressions(expr, x) NO! this line could lead to infinite recursion
         Ω = [log_exp_simplify(recursive(expr) do f, ex
                 ex isa BasicSymbolic{Field} || return ex
                 exprtype(ex) == SYM && return ex === x ? exp(x) : ex
                 operation(ex)(f.(arguments(ex))...)
             end) for expr in Ω]
-        #indent() && println("D4")
+        indent() && println("D4, ", Ω)
         ω_val = last(Ω)
         #indent() && println("D5")
     end
 
-    indent() && println("E", (expr, ω_val))
+    indent() && println("E, ", (expr, ω_val))
 
     # normalize ω to approach zero (it is already structurally positive)
     @assert operation(ω_val) == exp
@@ -186,15 +186,17 @@ function signed_limit(expr::BasicSymbolic{Field}, x::BasicSymbolic{Field}) where
         ω_val = exp(h)
     end
 
-    indent() && println((expr, h, ω_val))
+    indent() && println("F: ", (expr, h, ω_val, Ω))
 
-    # indent() && println("F")
-
-    expr2 = recursive(expr) do f, ex
+    expr2 = recursive(expr) do f, ex # This traverses from largest to smallest, as required
+        println(ex)
         ex isa BasicSymbolic{Field} || return ex
+        println("A")
         exprtype(ex) == SYM && return ex
+        println("B")
         # ex ∈ Ω && return rewrite(ex, ω, h, x) # ∈ uses symbolic equality which is iffy
         any(x -> zero_equivalence(x - ex), Ω) && return rewrite(ex, ω_sym, h, x)
+        println("C")
         operation(ex)(f.(arguments(ex))...)
     end
 
@@ -252,16 +254,16 @@ function most_rapidly_varying_subexpressions(expr::BasicSymbolic{Field}, x::Basi
             arg = only(arguments(expr))
             most_rapidly_varying_subexpressions(arg, x)
         elseif op == exp
-            indent() && println("XXXXXXXXX")
+            # indent() && println("XXXXXXXXX")
             arg = only(arguments(expr))
             res = if isfinite(limit(arg, x))
-                indent() && println("Finite")
+                # indent() && println("Finite")
                 most_rapidly_varying_subexpressions(arg, x)
             else
-                indent() && println("Infinite")
+                # indent() && println("Infinite")
                 mrv_join(x)([expr], most_rapidly_varying_subexpressions(arg, x)) # ensure that the inner most exprs stay last
             end
-            indent() && println("YYYYYYYY $res")
+            # indent() && println("YYYYYYYY $res")
             res
         else
             error("Not implemented: $op")
@@ -336,6 +338,10 @@ function mrv_join(x)
     end
 end
 
+"""
+rewrite `expr` in the form `Aω^c` such that `A` is less rapidly varying than `ω` and `c` is
+a real number. `ω` is a symbol that represents `exp(h)`.
+"""
 function rewrite(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field}, h::BasicSymbolic{Field}, x::BasicSymbolic{Field}) where Field
     @assert exprtype(expr) == TERM && operation(expr) == exp
     @assert exprtype(ω) == SYM
@@ -552,6 +558,7 @@ let
     @test limit(-1/x, x) === 0
     @test limit(-x / log(x), x) === -Inf
     @test only(mrv_join(x)([exp(x)], [x])) - exp(x) === 0
+    @test signed_limit(exp(exp(-x))-1, x) == (0, 1)
     @test_broken limit(exp(x+exp(-x))-exp(x), x) == 1
 end
 
