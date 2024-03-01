@@ -18,7 +18,8 @@ thrown. Side defaults to `:both` for finite `h`, `:left` for `h = Inf`, and `:ri
 function limit end
 
 limit(expr, var::BasicSymbolic, h) = limit(expr, var, h, _AUTO)
-function limit(expr, var::BasicSymbolic, h, side::Symbol)
+limit(expr, var::BasicSymbolic, h, side::Symbol) = expr
+function limit(expr::BasicSymbolic, var::BasicSymbolic, h, side::Symbol)
     side ∈ (:left, :right, :both, _AUTO) || throw(ArgumentError("Unknown side: $side"))
     if isinf(h)
         if signbit(h)
@@ -30,10 +31,11 @@ function limit(expr, var::BasicSymbolic, h, side::Symbol)
         end
     else
         if side == :left
-            limit_inf(SymbolicUtils.substitute(expr, Dict(var => h-1/var), var, h))
+            limit_inf(SymbolicUtils.substitute(expr, Dict(var => h-1/var)), var)
         elseif side == :right
-            limit_inf(SymbolicUtils.substitute(expr, Dict(var => h+1/var), var, h))
+            limit_inf(SymbolicUtils.substitute(expr, Dict(var => h+1/var)), var)
         else @assert side ∈ (:both, _AUTO)
+            println(expr)
             left = limit_inf(SymbolicUtils.substitute(expr, Dict(var => h-1/var), var, h))
             right = limit_inf(SymbolicUtils.substitute(expr, Dict(var => h+1/var), var, h))
             zero_equivalence(left-right) || throw(ArgumentError("The left sided limit ($left) and right sided limit ($right) are not equal"))
