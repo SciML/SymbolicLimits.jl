@@ -198,6 +198,7 @@ function signed_limit(expr::BasicSymbolic{Field}, x::BasicSymbolic{Field}) where
     indent() && println("G, $expr2")
 
     exponent = get_leading_exponent(expr2, ω_sym, h)
+    exponent === Inf && return (0, 0) # TODO: track sign
     leading_coefficient = get_series_term(expr2, ω_sym, h, exponent)
     indent() && println("H, $exponent, $leading_coefficient")
     leading_coefficient, lc_sign = signed_limit(leading_coefficient, x)
@@ -557,7 +558,7 @@ let
     @test limit(exp(x+exp(-x))-exp(x), x) == 1
     @test limit(x^7/exp(x), x) == 0
     @test limit(x^70000/exp(x), x) == 0
-    @test_broken limit(log(log(x*exp(x*exp(x))+1))-exp(exp(log(log(x))+1/x)))
+    @test_broken limit(log(log(x*exp(x*exp(x))+1))-exp(exp(log(log(x))+1/x)), x) == 0
 end
 
 false && let
