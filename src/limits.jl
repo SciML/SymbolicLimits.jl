@@ -115,7 +115,9 @@ function S(expr, x)
 end
 _size(expr, x) = length(S(expr, x))
 
+DEBUG = Ref(false)
 function indent()
+    DEBUG[] || return false
     depth = length(backtrace())-36
     if depth < 12
         print(' '^(depth÷1))
@@ -129,7 +131,7 @@ limit(expr, x::BasicSymbolic{Field}) where Field = signed_limit(expr, x)[1]
 signed_limit(expr::Field, x::BasicSymbolic{Field}) where Field = expr, sign(expr)
 function signed_limit(expr::BasicSymbolic{Field}, x::BasicSymbolic{Field}) where Field
     expr0 = expr
-    if FUEL[] <= 0
+    if FUEL[] <= 0 && DEBUG[]
         error("Fuel exhausted")
     end
     FUEL[] -= 1
