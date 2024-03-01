@@ -272,7 +272,7 @@ function most_rapidly_varying_subexpressions(expr::BasicSymbolic{Field}, x::Basi
         args = arguments(expr)
         @assert length(args) == 2
         base, exponent = args
-        if exponent isa Real && isinteger(exponent)
+        if exponent isa Real && isinteger(exponent) && exponent > 0
             most_rapidly_varying_subexpressions(base, x)
         else
             error("Not implemented: POW with noninteger exponent $exponent. Transform to log/exp.")
@@ -432,7 +432,7 @@ function get_series_term(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field}, h
         args = arguments(expr)
         @assert length(args) == 2
         base, exponent = args
-        if exponent isa Real && isinteger(exponent)
+        if exponent isa Real && isinteger(exponent) && exponent > 0
             t = i ÷ exponent
             if t * exponent == i # integral
                 get_series_term(base, ω, h, t) ^ exponent
@@ -519,7 +519,7 @@ function get_leading_exponent(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Fiel
         args = arguments(expr)
         @assert length(args) == 2
         base, exponent = args
-        if exponent isa Real && isinteger(exponent)
+        if exponent isa Real && isinteger(exponent) && exponent > 0
             exponent * get_leading_exponent(base, ω, h)
         else
             error("Not implemented: POW with noninteger exponent $exponent. Transform to log/exp.")
