@@ -20,7 +20,8 @@ limit(exp(csc(x))/exp(cot(x)), x, 0) (1)
 
 @testset "SymbolicLimits.jl" begin
     @testset "Code quality (Aqua.jl)" begin
-        false && Aqua.test_all(SymbolicLimits)
+        Aqua.test_all(SymbolicLimits, deps_compat=false, ambiguities=false)
+        Aqua.test_deps_compat(SymbolicLimits, check_extras=false)
     end
 
     @testset "Tests that failed during initial development phase 1" begin
