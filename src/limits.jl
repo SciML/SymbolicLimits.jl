@@ -390,14 +390,14 @@ function get_series_term(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field}, h
             i < 0 && return zero(Field)
             arg = only(arguments(expr))
             exponent = get_leading_exponent(arg, ω, h)
-            sm = one(Field) # k == 0 adds one to the sum
+            sm = i == 0 ? one(Field) : zero(Field) # k == 0 adds one to the sum
             if exponent == 0
                 # e^c0 * sum (s-t0)^k/k!
                 # TODO: refactor this to share code for the "sum of powers of a series" form
                 for k in 1:i
                     term = i ÷ k
                     if term * k == i # integral
-                        sm += get_series_term(arg, ω, h, term+exponent)^k/factorial(k) # this could overflow... oh well. It'l error if it does.
+                        sm += get_series_term(arg, ω, h, term)^k/factorial(k) # this could overflow... oh well. It'l error if it does.
                     end
                 end
                 sm * exp(get_series_term(arg, ω, h, exponent))
@@ -406,7 +406,7 @@ function get_series_term(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field}, h
                 for k in 1:i
                     term = i ÷ k
                     if term * k == i && term >= exponent # integral and not structural zero
-                        sm += get_series_term(arg, ω, h, term+exponent)^k/factorial(k) # this could overflow... oh well. It'l error if it does.
+                        sm += get_series_term(arg, ω, h, term)^k/factorial(k) # this could overflow... oh well. It'l error if it does.
                     end
                 end
                 sm
@@ -563,7 +563,7 @@ let
     @test !zero_equivalence(get_series_term(log(x/ω), ω, -x, 0) - log(x / ω))
     @test get_series_term(1 / ω, ω, -x, 0) == 0
     @test limit(x^2/(x^2+log(x)), x) == 1
-    @test_broken get_series_term(exp(ω), ω, -x, 2) == 1/2
+    @test get_series_term(exp(ω), ω, -x, 2) == 1/2
     @test_broken zero_equivalence(1.0 - exp(-x + exp(log(x))))
     @test_broken limit(x + log(x) - exp(exp(1 / x + log(log(x)))), x) == 0
     @test_broken limit(log(log(x*exp(x*exp(x))+1))-exp(exp(log(log(x))+1/x)), x) == 0
