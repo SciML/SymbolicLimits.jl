@@ -550,7 +550,7 @@ zero_equivalence(expr) = iszero(simplify(expr, expand=true)) === true
 using Test
 
 let
-    @syms x::Real
+    @syms x::Real ω::Real
     @test limit(-1/x, x) === 0
     @test limit(-x / log(x), x) === -Inf
     @test only(mrv_join(x)([exp(x)], [x])) - exp(x) === 0

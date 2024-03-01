@@ -1,5 +1,10 @@
 module SymbolicLimits
 
-# Write your package code here.
+module Internals
+    include("limits.jl")
+end
+
+using .Internals: limit
+export limit
 
 end
