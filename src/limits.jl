@@ -138,15 +138,15 @@ function signed_limit(expr::BasicSymbolic{Field}, x::BasicSymbolic{Field}) where
 
     expr === x && (indent() && println("<"); return (Inf, 1))
 
-    indent() && println("A")
+    # indent() && println("A")
     Ω = most_rapidly_varying_subexpressions(expr, x)
-    indent() && println("B")
+    # indent() && println("B")
     isempty(Ω) && (indent() && println("<"); return (expr, sign(expr)))
     #indent() && println("C")
     ω_val = last(Ω)
     ω_sym = SymbolicUtils.Sym{Field}(Symbol(:ω, gensym()))
 
-    indent() && println("D")
+    # indent() && println("D")
     while !is_exp(ω_val) # equivalent to x ∈ Ω
         #indent() && println("D1")
         expr = recursive(expr) do f, ex
@@ -156,19 +156,19 @@ function signed_limit(expr::BasicSymbolic{Field}, x::BasicSymbolic{Field}) where
         end
         #indent() && println("D2")
         expr = log_exp_simplify(expr)
-        indent() && println("D3, ", Ω)
+        # indent() && println("D3, ", Ω)
         # Ω = most_rapidly_varying_subexpressions(expr, x) NO! this line could lead to infinite recursion
         Ω = [log_exp_simplify(recursive(expr) do f, ex
                 ex isa BasicSymbolic{Field} || return ex
                 exprtype(ex) == SYM && return ex === x ? exp(x) : ex
                 operation(ex)(f.(arguments(ex))...)
             end) for expr in Ω]
-        indent() && println("D4, ", Ω)
+        # indent() && println("D4, ", Ω)
         ω_val = last(Ω)
         #indent() && println("D5")
     end
 
-    indent() && println("E, ", (expr, ω_val))
+    # indent() && println("E, ", (expr, ω_val))
 
     # normalize ω to approach zero (it is already structurally positive)
     @assert operation(ω_val) == exp
@@ -235,7 +235,7 @@ end
 most_rapidly_varying_subexpressions(expr::Field, x::BasicSymbolic{Field}) where Field = []
 function most_rapidly_varying_subexpressions(expr::BasicSymbolic{Field}, x::BasicSymbolic{Field}) where Field
     exprtype(x) == SYM || throw(ArgumentError("Must expand with respect to a symbol. Got $x"))
-    indent() && println("most_rapidly_varying_subexpressions($expr, $x), (size: $(_size(expr, x)))")
+    # indent() && println("most_rapidly_varying_subexpressions($expr, $x), (size: $(_size(expr, x)))")
     # TODO: this is slow. This whole algorithm is slow. Profile, benchmark, and optimize it.
     et = exprtype(expr)
     ret = if et == SYM
@@ -278,7 +278,7 @@ function most_rapidly_varying_subexpressions(expr::BasicSymbolic{Field}, x::Basi
     else
         error("Unknwon Expr type: $et")
     end
-    indent() && println("mrv($expr, $x) = $ret")
+    # indent() && println("mrv($expr, $x) = $ret")
     ret
 end
 
@@ -289,7 +289,7 @@ is_exp_or_x(expr::BasicSymbolic, x::BasicSymbolic) =
     f ≺ g iff log(f)/log(g) -> 0
 """
 function compare_varience_rapidity(expr1, expr2, x)
-    indent() && println("compare_varience_rapidity($expr1, $expr2, $x)")
+    # indent() && println("compare_varience_rapidity($expr1, $expr2, $x)")
     @assert is_exp_or_x(expr1, x)
     @assert is_exp_or_x(expr2, x)
     # expr1 === expr2 && return 0 # both x (or both same exp, either way okay, but for sure we cover the both x case)
@@ -312,7 +312,7 @@ function compare_varience_rapidity(expr1, expr2, x)
     # #indent() && println("compare_varience_rapidity($expr1, $expr2, $x)")
 
     lim = limit(_log(expr1)/_log(expr2), x)
-    indent() && println("LIM: ", lim)
+    # indent() && println("LIM: ", lim)
     iszero(lim) && return -1
     isfinite(lim) && return 0
     isinf(lim) && return 1
@@ -558,6 +558,7 @@ let
     @test limit(exp(x+exp(-x))-exp(x), x) == 1
     @test limit(x^7/exp(x), x) == 0
     @test limit(x^70000/exp(x), x) == 0
+    @test_broken get_series_term(log(x/ω), ω, -x, 0) - log(x / ω) != 0
     @test_broken limit(log(log(x*exp(x*exp(x))+1))-exp(exp(log(log(x))+1/x)), x) == 0
 end
 
