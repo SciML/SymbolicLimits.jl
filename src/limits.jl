@@ -51,62 +51,31 @@ function S(expr, x)
 end
 _size(expr, x) = length(S(expr, x))
 
-DEBUG = Ref(false)
-function indent()
-    DEBUG[] || return false
-    depth = length(backtrace())-36
-    if depth < 12
-        print(' '^(depth÷1))
-        true
-    else
-        false
-    end
-end
-
 limit_inf(expr, x::BasicSymbolic{Field}) where Field = signed_limit_inf(expr, x)[1]
 signed_limit_inf(expr::Field, x::BasicSymbolic{Field}) where Field = expr, sign(expr)
 function signed_limit_inf(expr::BasicSymbolic{Field}, x::BasicSymbolic{Field}) where Field
-    expr0 = expr
-    if FUEL[] <= 0 && DEBUG[]
-        error("Fuel exhausted")
-    end
-    FUEL[] -= 1
+    expr === x && return (Inf, 1)
 
-    indent() && println("limit_inf($expr, $x) (size: $(_size(expr, x)))")
-
-    expr === x && (indent() && println("<"); return (Inf, 1))
-
-    # indent() && println("A")
     Ω = most_rapidly_varying_subexpressions(expr, x)
-    # indent() && println("B")
-    isempty(Ω) && (indent() && println("<"); return (expr, sign(expr)))
-    #indent() && println("C")
+    isempty(Ω) && return (expr, sign(expr))
     ω_val = last(Ω)
     ω_sym = SymbolicUtils.Sym{Field}(Symbol(:ω, gensym()))
 
-    # indent() && println("D")
     while !is_exp(ω_val) # equivalent to x ∈ Ω
-        #indent() && println("D1")
         expr = recursive(expr) do f, ex
             ex isa BasicSymbolic{Field} || return ex
             exprtype(ex) == SYM && return ex === x ? exp(x) : ex
             operation(ex)(f.(arguments(ex))...)
         end
-        #indent() && println("D2")
         expr = log_exp_simplify(expr)
-        # indent() && println("D3, ", Ω)
         # Ω = most_rapidly_varying_subexpressions(expr, x) NO! this line could lead to infinite recursion
         Ω = [log_exp_simplify(recursive(expr) do f, ex
                 ex isa BasicSymbolic{Field} || return ex
                 exprtype(ex) == SYM && return ex === x ? exp(x) : ex
                 operation(ex)(f.(arguments(ex))...)
             end) for expr in Ω]
-        # indent() && println("D4, ", Ω)
         ω_val = last(Ω)
-        #indent() && println("D5")
     end
-
-    # indent() && println("E, ", (expr, ω_val))
 
     # normalize ω to approach zero (it is already structurally positive)
     @assert operation(ω_val) == exp
@@ -117,8 +86,6 @@ function signed_limit_inf(expr::BasicSymbolic{Field}, x::BasicSymbolic{Field}) w
         h = -h
         ω_val = exp(h)
     end
-
-    indent() && println("F: ", (expr, h, ω_val, Ω))
 
     # This ensures that mrv(expr2) == {ω}. TODO: do we need to do top-down with recursion even after replacement?
     expr2 = recursive(expr) do f, ex # This traverses from largest to smallest, as required?
@@ -133,14 +100,10 @@ function signed_limit_inf(expr::BasicSymbolic{Field}, x::BasicSymbolic{Field}) w
         operation(ex)(f.(arguments(ex))...)
     end
 
-    indent() && println("G, $expr2")
-
     exponent = get_leading_exponent(expr2, ω_sym, h)
-    exponent === Inf && (indent() && println("< $expr0 -> (0, 0)"); return (0, 0)) # TODO: track sign
+    exponent === Inf && return (0, 0) # TODO: track sign
     leading_coefficient = get_series_term(expr2, ω_sym, h, exponent)
-    indent() && println("H, $exponent, $leading_coefficient")
     leading_coefficient, lc_sign = signed_limit_inf(leading_coefficient, x)
-    indent() && println("I, $exponent, $leading_coefficient")
     res = if exponent < 0
         # This will fail if leading_coefficient is not scalar, oh well, we'll solve that error later. Inf sign kinda matters.
         copysign(Inf, lc_sign), lc_sign
@@ -150,7 +113,6 @@ function signed_limit_inf(expr::BasicSymbolic{Field}, x::BasicSymbolic{Field}) w
     else
         leading_coefficient, lc_sign
     end
-    indent() && println("< ($expr0 -> $res)")
     res
 end
 
@@ -185,7 +147,6 @@ end
 most_rapidly_varying_subexpressions(expr::Field, x::BasicSymbolic{Field}) where Field = []
 function most_rapidly_varying_subexpressions(expr::BasicSymbolic{Field}, x::BasicSymbolic{Field}) where Field
     exprtype(x) == SYM || throw(ArgumentError("Must expand with respect to a symbol. Got $x"))
-    # indent() && println("most_rapidly_varying_subexpressions($expr, $x), (size: $(_size(expr, x)))")
     # TODO: this is slow. This whole algorithm is slow. Profile, benchmark, and optimize it.
     et = exprtype(expr)
     ret = if et == SYM
@@ -200,16 +161,12 @@ function most_rapidly_varying_subexpressions(expr::BasicSymbolic{Field}, x::Basi
             arg = only(arguments(expr))
             most_rapidly_varying_subexpressions(arg, x)
         elseif op == exp
-            # indent() && println("XXXXXXXXX")
             arg = only(arguments(expr))
             res = if isfinite(limit_inf(arg, x))
-                # indent() && println("Finite")
                 most_rapidly_varying_subexpressions(arg, x)
             else
-                # indent() && println("Infinite")
                 mrv_join(x)([expr], most_rapidly_varying_subexpressions(arg, x)) # ensure that the inner most exprs stay last
             end
-            # indent() && println("YYYYYYYY $res")
             res
         else
             error("Not implemented: $op")
@@ -228,7 +185,6 @@ function most_rapidly_varying_subexpressions(expr::BasicSymbolic{Field}, x::Basi
     else
         error("Unknwon Expr type: $et")
     end
-    # indent() && println("mrv($expr, $x) = $ret")
     ret
 end
 
@@ -239,7 +195,6 @@ is_exp_or_x(expr::BasicSymbolic, x::BasicSymbolic) =
     f ≺ g iff log(f)/log(g) -> 0
 """
 function compare_varience_rapidity(expr1, expr2, x)
-    # indent() && println("compare_varience_rapidity($expr1, $expr2, $x)")
     @assert is_exp_or_x(expr1, x)
     @assert is_exp_or_x(expr2, x)
     # expr1 === expr2 && return 0 # both x (or both same exp, either way okay, but for sure we cover the both x case)
@@ -259,10 +214,8 @@ function compare_varience_rapidity(expr1, expr2, x)
     # iszero(lim) && return -1
     # isfinite(lim) && return 0
     # isinf(lim) && return 1
-    # #indent() && println("compare_varience_rapidity($expr1, $expr2, $x)")
 
     lim = limit_inf(_log(expr1)/_log(expr2), x)
-    # indent() && println("LIM: ", lim)
     iszero(lim) && return -1
     isfinite(lim) && return 0
     isinf(lim) && return 1

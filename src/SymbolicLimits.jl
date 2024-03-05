@@ -35,7 +35,6 @@ function limit(expr::BasicSymbolic, var::BasicSymbolic, h, side::Symbol)
         elseif side == :right
             limit_inf(SymbolicUtils.substitute(expr, Dict(var => h+1/var)), var)
         else @assert side ∈ (:both, _AUTO)
-            println(expr)
             left = limit_inf(SymbolicUtils.substitute(expr, Dict(var => h-1/var), var, h))
             right = limit_inf(SymbolicUtils.substitute(expr, Dict(var => h+1/var), var, h))
             zero_equivalence(left-right) || throw(ArgumentError("The left sided limit ($left) and right sided limit ($right) are not equal"))
