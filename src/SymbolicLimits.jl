@@ -8,7 +8,8 @@ const _AUTO = :__0x6246e6c6ad56df8113c7eb80b2a84080__
 """
     limit(expr, var, h[, side::Symbol])
 
-Compute the limit of `expr` as `var` approaches `h`.
+Compute the limit of `expr` as `var` approaches `h` and return `(limit, assumptions)`. If
+all the `assumptions` are true, then the returned `limit` is correct.
 
 `side` indicates the direction from which `var`` approaches `h`. It may be one of `:left`,
 `:right`, or `:both`. If `side` is `:both` and the two sides do not align, an error is
@@ -35,10 +36,10 @@ function limit(expr::BasicSymbolic, var::BasicSymbolic, h, side::Symbol)
         elseif side == :right
             limit_inf(SymbolicUtils.substitute(expr, Dict(var => h+1/var)), var)
         else @assert side ∈ (:both, _AUTO)
-            left = limit_inf(SymbolicUtils.substitute(expr, Dict(var => h-1/var), var, h))
-            right = limit_inf(SymbolicUtils.substitute(expr, Dict(var => h+1/var), var, h))
-            zero_equivalence(left-right) || throw(ArgumentError("The left sided limit ($left) and right sided limit ($right) are not equal"))
-            right
+            left = limit_inf(SymbolicUtils.substitute(expr, Dict(var => h-1/var)), var)
+            right = limit_inf(SymbolicUtils.substitute(expr, Dict(var => h+1/var)), var)
+            zero_equivalence(left[1]-right[1], left[2]) || throw(ArgumentError("The left sided limit ($(left[1])) and right sided limit ($(right[1])) are not equal"))
+            right[1], union(left[2], right[2])
         end
     end
 end
