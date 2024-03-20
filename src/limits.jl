@@ -35,8 +35,6 @@ using SymbolicUtils: SYM, TERM, ADD, MUL, POW, DIV
 is_exp(expr) = false
 is_exp(expr::BasicSymbolic) = exprtype(expr) == TERM && operation(expr) == exp
 
-FUEL = Ref(1000)
-
 # unused: for debugging only:
 function S(expr, x)
     expr === x && return Set([x])
