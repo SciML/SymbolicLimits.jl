@@ -11,13 +11,13 @@ using Aqua
     @testset "Tests that failed during initial development phase 1" begin
         let
             @syms x::Real y::Real ω::Real
-            @test SymbolicLimits.zero_equivalence(x*(x+y)-x-x*y+x-x*(x+1)+x)
-            @test_broken SymbolicLimits.zero_equivalence(exp((x+1)*x - x*x-x)-1)
+            @test SymbolicLimits.zero_equivalence(x*(x+y)-x-x*y+x-x*(x+1)+x, Set{Any}())
+            @test_broken SymbolicLimits.zero_equivalence(exp((x+1)*x - x*x-x)-1, Set{Any}())
 
-            @test SymbolicLimits.get_leading_exponent(x^2, x, nothing) == 2
-            @test SymbolicLimits.get_series_term(log(exp(x)), x, nothing, 1) == 1
-            @test SymbolicLimits.get_series_term(log(exp(x)), x, -x, 0) == 0
-            @test SymbolicLimits.get_series_term(log(exp(x)), x, nothing, 2) == 0
+            @test SymbolicLimits.get_leading_exponent(x^2, x, nothing, Set{Any}()) == 2
+            @test SymbolicLimits.get_series_term(log(exp(x)), x, nothing, 1, Set{Any}()) == 1
+            @test SymbolicLimits.get_series_term(log(exp(x)), x, -x, 0, Set{Any}()) == 0
+            @test SymbolicLimits.get_series_term(log(exp(x)), x, nothing, 2, Set{Any}()) == 0
 
             # F = exp(x+exp(-x))-exp(x)
             # Ω = {exp(x + exp(-x)), exp(x), exp(-x)}
@@ -35,7 +35,7 @@ using Aqua
             # c = lim(s/t) = lim((x+exp(-x))/-x) = -1
             # f = exp(s-ct)*ω^c = exp(x+exp(-x)-c*t)*ω^-1 = exp(exp(-x))/ω
 
-            @test SymbolicLimits.zero_equivalence(SymbolicLimits.rewrite(exp(x+exp(-x)), ω, -x, x) - exp(exp(-x))/ω) # it works if you define `limit(args...) = -1`
+            @test SymbolicLimits.zero_equivalence(SymbolicLimits.rewrite(exp(x+exp(-x)), ω, -x, x, Set{Any}()) - exp(exp(-x))/ω, Set{Any}()) # it works if you define `limit(args...) = -1`
 
             # F = exp(exp(-x))/ω - exp(x)
 
@@ -51,18 +51,18 @@ using Aqua
 
             # F = exp(ω)/ω - 1/ω
             let F = exp(ω)/ω - 1/ω, h=-x
-                @test SymbolicLimits.get_leading_exponent(F, ω, h) == 0
-                @test SymbolicLimits.get_series_term(F, ω, h, 0) == 1 # the correct final answer
+                @test SymbolicLimits.get_leading_exponent(F, ω, h, Set{Any}()) == 0
+                @test SymbolicLimits.get_series_term(F, ω, h, 0, Set{Any}()) == 1 # the correct final answer
             end
 
             function test(expr, leading_exp, series, sym=x)
-                lt = SymbolicLimits.get_leading_exponent(expr, sym, nothing)
+                lt = SymbolicLimits.get_leading_exponent(expr, sym, nothing, Set{Any}())
                 @test lt === leading_exp
                 for (i,val) in enumerate(series)
-                    @test SymbolicLimits.get_series_term(expr, sym, nothing, lt+i-1) === val
+                    @test SymbolicLimits.get_series_term(expr, sym, nothing, lt+i-1, Set{Any}()) === val
                 end
                 for i in leading_exp-10:leading_exp-1
-                    @test SymbolicLimits.get_series_term(expr, sym, nothing, i) === 0
+                    @test SymbolicLimits.get_series_term(expr, sym, nothing, i, Set{Any}()) === 0
                 end
             end
             test(x, 1, [1,0,0,0,0,0])
@@ -73,14 +73,14 @@ using Aqua
                 arg isa AbstractArray ? sum(f, arg) : arg
             end == 6
 
-            @test only(SymbolicLimits.most_rapidly_varying_subexpressions(exp(x), x)) - exp(x) === 0 # works if you define `limit(args...) = Inf`
-            @test all(i -> i === x, SymbolicLimits.most_rapidly_varying_subexpressions(x+2(x+1), x)) # works if you define `limit(args...) = 1`
+            @test only(SymbolicLimits.most_rapidly_varying_subexpressions(exp(x), x, Set{Any}())) - exp(x) === 0 # works if you define `limit(args...) = Inf`
+            @test all(i -> i === x, SymbolicLimits.most_rapidly_varying_subexpressions(x+2(x+1), x, Set{Any}())) # works if you define `limit(args...) = 1`
 
             @test SymbolicLimits.log_exp_simplify(x) === x
-            @test SymbolicLimits.zero_equivalence(SymbolicLimits.log_exp_simplify(exp(x)) - exp(x))
-            @test SymbolicLimits.zero_equivalence(SymbolicLimits.log_exp_simplify(exp(log(x))) - exp(log(x)))
+            @test SymbolicLimits.zero_equivalence(SymbolicLimits.log_exp_simplify(exp(x)) - exp(x), Set{Any}())
+            @test SymbolicLimits.zero_equivalence(SymbolicLimits.log_exp_simplify(exp(log(x))) - exp(log(x)), Set{Any}())
             @test SymbolicLimits.log_exp_simplify(log(exp(x))) === x
-            @test SymbolicLimits.zero_equivalence(SymbolicLimits.log_exp_simplify(log(exp(log(x)))) - log(x))
+            @test SymbolicLimits.zero_equivalence(SymbolicLimits.log_exp_simplify(log(exp(log(x)))) - log(x), Set{Any}())
             @test (SymbolicLimits.log_exp_simplify(log(exp(1+x))) - (1+x)) === 0
             @test SymbolicLimits.log_exp_simplify(log(log(exp(exp(x))))) === x
             @test SymbolicLimits.log_exp_simplify(log(exp(log(exp(x))))) === x
@@ -88,11 +88,11 @@ using Aqua
     end
 
     @testset "Tests that failed during initial development phase 2" begin
-        let limit = SymbolicLimits.limit_inf,
-            get_series_term = SymbolicLimits.get_series_term,
-            mrv_join = SymbolicLimits.mrv_join,
-            zero_equivalence = SymbolicLimits.zero_equivalence,
-            signed_limit = SymbolicLimits.signed_limit_inf
+        let limit = ((args...) -> SymbolicLimits.limit_inf(args...)[1]),
+            get_series_term = ((args...) -> SymbolicLimits.get_series_term(args..., Set{Any}())),
+            mrv_join = ((args...) -> SymbolicLimits.mrv_join(args..., Set{Any}())),
+            zero_equivalence = ((args...) -> SymbolicLimits.zero_equivalence(args..., Set{Any}())),
+            signed_limit = ((args...) -> SymbolicLimits.signed_limit_inf(args..., Set{Any}()))
 
             @syms x::Real ω::Real
             @test limit(-1/x, x) === 0
@@ -115,16 +115,20 @@ using Aqua
     @testset "Examples from Gruntz's 1996 thesis" begin
         let
             @syms x::Real h::Real
-            @test limit(exp(x+exp(-x))-exp(x), x, Inf) == 1
-            @test limit(x^7/exp(x), x, Inf) == 0
-            @test_broken limit((arccos(x + h) - arccos(x))/h, h, 0, :right) == _unknown_
-            @test_broken limit(1/(x^log(log(log(log(1/x-1))))), x, 0, :right) == Inf
-            @test_broken limit((erf(x - exp(-exp(x)))-erf(x))*exp(exp(x))*exp(x^2), x, Inf) ≈ -2/√π
-            @test_broken limit(exp(csc(x))/exp(cot(x)), x, 0) == 1
-            @test_broken limit(exp(x)*(sin(1/x+exp(-x)) - sin(1/x)), x, Inf) == 1
-            @test limit(log(log(x*exp(x*exp(x))+1))-exp(exp(log(log(x))+1/x)), x, Inf) == 0
-            @test limit(2exp(-x)/exp(-x), x, 0) == 2
-            @test_broken limit(exp(csc(x))/exp(cot(x)), x, 0) == 1
+            @test limit(exp(x+exp(-x))-exp(x), x, Inf)[1] == 1
+            @test limit(x^7/exp(x), x, Inf)[1] == 0
+            @test_broken limit((arccos(x + h) - arccos(x))/h, h, 0, :right)[1] == _unknown_
+            @test_broken limit(1/(x^log(log(log(log(1/x-1))))), x, 0, :right)[1] == Inf
+            @test_broken limit((erf(x - exp(-exp(x)))-erf(x))*exp(exp(x))*exp(x^2), x, Inf)[1] ≈ -2/√π
+            @test_broken limit(exp(csc(x))/exp(cot(x)), x, 0)[1] == 1
+            @test_broken limit(exp(x)*(sin(1/x+exp(-x)) - sin(1/x)), x, Inf)[1] == 1
+            @test limit(log(log(x*exp(x*exp(x))+1))-exp(exp(log(log(x))+1/x)), x, Inf)[1] == 0
+            @test limit(2exp(-x)/exp(-x), x, 0)[1] == 2
+            @test_broken limit(exp(csc(x))/exp(cot(x)), x, 0)[1] == 1
         end
+    end
+
+    @testset "Bugs emerging when tracking assumptions" begin
+        # limit(x/(x+y), x, 0, :right) # threw
     end
 end
