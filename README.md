@@ -1,6 +1,6 @@
-# STATUS: WIP
+# STATUS: Beta
 
-This project contains known correctness bugs.
+This project is young and has never been used in production before. Expect to help find and report bugs if you use this project.
 
 # SymbolicLimits
 
@@ -11,7 +11,30 @@ This project contains known correctness bugs.
 [![PkgEval](https://JuliaCI.github.io/NanosoldierReports/pkgeval_badges/S/SymbolicLimits.svg)](https://JuliaCI.github.io/NanosoldierReports/pkgeval_badges/S/SymbolicLimits.html)
 [![Aqua](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
 
-# Demo
+# Limitations of computing symbolic limits
+
+Zero equivalence of log-exp functions is undecidable and reducible to computing symbolic limits. Specifically, to
+determine if the expression `x` is zero, compute the limit `limit(ϵ/(x + ϵ), ϵ, 0)`, which is 1 if `x == 0` and 0
+if `x != 0`. This package implements a reduction in the reverse direction, and always produces an answer and
+terminates. To avoid the undecidability issue, SymbolicLimits utilizes a heuristic iszero detector and, tracks all
+its results as assumptions. The returned result is correct if the assumptions all hold. In practice, the heuristic
+is pretty good and the assumptions typically all hold.
+
+# API
+
+The `limit` function is the whole of the public API of this package.
+
+`limit(expr, var, h[, side::Symbol])`
+
+Compute the limit of `expr` as `var` approaches `h` and return `(limit, assumptions)`. If
+all the `assumptions` are true, then the returned `limit` is correct.
+
+`side` indicates the direction from which `var`` approaches `h`. It may be one of `:left`,
+`:right`, or `:both`. If `side` is `:both` and the two sides do not align, an error is
+thrown. Side defaults to `:both` for finite `h`, `:left` for `h = Inf`, and `:right` for
+`h = -Inf`.
+
+## Demo
 
 ```julia
 using Pkg; pkg"activate --temp"; pkg"add https://github.com/LilithHafner/SymbolicLimits.jl"; pkg"add SymbolicUtils" # slow
@@ -20,15 +43,14 @@ using SymbolicLimits, SymbolicUtils # slow
 
 @syms x::Real
 
-limit(exp(x+exp(-x))-exp(x), x) == 1 # slow
+limit(exp(x+exp(-x))-exp(x), x, Inf)[1] == 1 # slow
 
 # the rest is fast
 
-limit(-1/x, x)
-limit(-x / log(x), x)
-limit(exp(x+exp(-x))-exp(x), x)
-limit(x^7/exp(x), x)
-limit(x^70000/exp(x), x)
-
-limit(log(log(x*exp(x*exp(x))+1))-exp(exp(log(log(x))+1/x)), x) # wrong
+limit(-1/x, x, Inf)[1]
+limit(-x / log(x), x, Inf)[1]
+limit(exp(x+exp(-x))-exp(x), x, Inf)[1]
+limit(x^7/exp(x), x, Inf)[1]
+limit(x^70000/exp(x), x, Inf)[1]
+limit(log(log(x*exp(x*exp(x))+1))-exp(exp(log(log(x))+1/x)), x, Inf)[1]
 ```
