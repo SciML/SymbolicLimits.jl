@@ -35,19 +35,20 @@ using SymbolicUtils: SYM, TERM, ADD, MUL, POW, DIV
 is_exp(expr) = false
 is_exp(expr::BasicSymbolic) = exprtype(expr) == TERM && operation(expr) == exp
 
-# unused: for debugging only:
-function S(expr, x)
-    expr === x && return Set([x])
-    expr isa BasicSymbolic || return Set([])
-    t = exprtype(expr)
-    t == SYM && return Set([])
-    t in (ADD, MUL, DIV) && return mapreduce(Base.Fix2(S, x), ∪, arguments(expr))
-    t == POW && arguments(expr)[2] isa Real && isinteger(arguments(expr)[2]) && return S(arguments(expr)[1], x)
-    t == POW && error("Not implemented: POW with noninteger exponent $exponent. Transform to log/exp.")
-    t == TERM && operation(expr) == log && return S(only(arguments(expr)), x) ∪ Set([expr])
-    t == TERM && operation(expr) == exp && return S(only(arguments(expr)), x) ∪ Set([expr])
-end
-_size(expr, x) = length(S(expr, x))
+# unused. This function provides a measure of the "size" of an expression, for use in proofs
+# of termination and debugging nontermintion only:
+# function S(expr, x)
+#     expr === x && return Set([x])
+#     expr isa BasicSymbolic || return Set([])
+#     t = exprtype(expr)
+#     t == SYM && return Set([])
+#     t in (ADD, MUL, DIV) && return mapreduce(Base.Fix2(S, x), ∪, arguments(expr))
+#     t == POW && arguments(expr)[2] isa Real && isinteger(arguments(expr)[2]) && return S(arguments(expr)[1], x)
+#     t == POW && error("Not implemented: POW with noninteger exponent $exponent. Transform to log/exp.")
+#     t == TERM && operation(expr) == log && return S(only(arguments(expr)), x) ∪ Set([expr])
+#     t == TERM && operation(expr) == exp && return S(only(arguments(expr)), x) ∪ Set([expr])
+# end
+# _size(expr, x) = length(S(expr, x))
 
 """
     limit_inf(expr, x)
