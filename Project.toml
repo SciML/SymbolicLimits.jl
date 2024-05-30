@@ -7,7 +7,7 @@ version = "0.2.1"
 SymbolicUtils = "d1185830-fcd6-423d-90d6-eec64667417b"
 
 [compat]
-SymbolicUtils = "2"
+SymbolicUtils = "1.5, 2"
 julia = "1.10"
 
 [extras]
