@@ -21,7 +21,7 @@ using Aqua
 
             # F = exp(x+exp(-x))-exp(x)
             # Ω = {exp(x + exp(-x)), exp(x), exp(-x)}
-            # Topl-sort Ω by containment
+            # Topo-sort Ω by containment
             # Take a smallest element of Ω and call it ω.
             # ω = exp(-x)
             # From largest to smallest, rewrite elements f ∈ Ω in terms of ω in the form
