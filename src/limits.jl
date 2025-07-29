@@ -36,7 +36,7 @@ is_exp(expr) = false
 is_exp(expr::BasicSymbolic) = exprtype(expr) == TERM && operation(expr) == exp
 
 # unused. This function provides a measure of the "size" of an expression, for use in proofs
-# of termination and debugging nontermintion only:
+# of termination and debugging nontermination only:
 # function S(expr, x)
 #     expr === x && return Set([x])
 #     expr isa BasicSymbolic || return Set([])
@@ -55,7 +55,7 @@ is_exp(expr::BasicSymbolic) = exprtype(expr) == TERM && operation(expr) == exp
 
 Compute the limit of `expr` as `x` approaches infinity and return `(limit, assumptions)`.
 
-This is the internal API boundry between the internal limits.jl file and the public
+This is the internal API boundary between the internal limits.jl file and the public
 SymbolicLimits.jl file
 """
 function limit_inf(expr, x::BasicSymbolic{Field}) where Field
@@ -195,7 +195,7 @@ function most_rapidly_varying_subexpressions(expr::BasicSymbolic{Field}, x::Basi
             error("Not implemented: POW with noninteger exponent $exponent. Transform to log/exp.")
         end
     else
-        error("Unknwon Expr type: $et")
+        error("Unknown Expr type: $et")
     end
     ret
 end
@@ -206,11 +206,11 @@ is_exp_or_x(expr::BasicSymbolic, x::BasicSymbolic) =
 """
     f ≺ g iff log(f)/log(g) -> 0
 """
-function compare_varience_rapidity(expr1, expr2, x, assumptions)
+function compare_variance_rapidity(expr1, expr2, x, assumptions)
     @assert is_exp_or_x(expr1, x)
     @assert is_exp_or_x(expr2, x)
     # expr1 === expr2 && return 0 # both x (or both same exp, either way okay, but for sure we cover the both x case)
-    # expr1 === x && expr2 !== x && return compare_varience_rapidity(expr2, expr1, x)
+    # expr1 === x && expr2 !== x && return compare_variance_rapidity(expr2, expr1, x)
     # @assert expr1 !== x
     # if expr2 !== x
     #     # they are both exp's, so it's safe (i.e. not a larger sub-expression) to call
@@ -238,13 +238,13 @@ function mrv_join(x, assumptions)
     function (mrvs1, mrvs2)
         isempty(mrvs1) && return mrvs2
         isempty(mrvs2) && return mrvs1
-        cmp = compare_varience_rapidity(first(mrvs1), first(mrvs2), x, assumptions)
+        cmp = compare_variance_rapidity(first(mrvs1), first(mrvs2), x, assumptions)
         if cmp == -1
             mrvs2
         elseif cmp == 1
             mrvs1
         else
-            vcat(mrvs1, mrvs2) # sets? unions? performance? nah. This saves us a topl-sort.
+            vcat(mrvs1, mrvs2) # sets? unions? performance? nah. This saves us a topo-sort.
         end
     end
 end
@@ -310,7 +310,7 @@ function get_series_term(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field}, h
                 for k in 1:i
                     term = i ÷ k
                     if term * k == i # integral
-                        sm += get_series_term(arg, ω, h, term, assumptions)^k/factorial(k) # this could overflow... oh well. It'l error if it does.
+                        sm += get_series_term(arg, ω, h, term, assumptions)^k/factorial(k) # this could overflow... oh well. It'll error if it does.
                     end
                 end
                 sm * exp(get_series_term(arg, ω, h, exponent, assumptions))
@@ -319,7 +319,7 @@ function get_series_term(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field}, h
                 for k in 1:i
                     term = i ÷ k
                     if term * k == i && term >= exponent # integral and not structural zero
-                        sm += get_series_term(arg, ω, h, term, assumptions)^k/factorial(k) # this could overflow... oh well. It'l error if it does.
+                        sm += get_series_term(arg, ω, h, term, assumptions)^k/factorial(k) # this could overflow... oh well. It'll error if it does.
                     end
                 end
                 sm
@@ -379,7 +379,7 @@ function get_series_term(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field}, h
         end
         sm / den_leading_term
     else
-        error("Unknwon Expr type: $et")
+        error("Unknown Expr type: $et")
     end
 end
 function get_series_term(expr::Field, ω::BasicSymbolic{Field}, h, i::Int, assumptions) where Field
@@ -444,7 +444,7 @@ function get_leading_exponent(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Fiel
          # The naive answer is actually correct. See the get_series_term implementation for how.
         get_leading_exponent(num, ω, h, assumptions) - get_leading_exponent(den, ω, h, assumptions)
     else
-        error("Unknwon Expr type: $et")
+        error("Unknown Expr type: $et")
     end
 end
 function get_leading_exponent(expr::Field, ω::BasicSymbolic{Field}, h, assumptions) where Field
