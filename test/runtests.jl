@@ -4,8 +4,8 @@ using Aqua
 
 @testset "SymbolicLimits.jl" begin
     @testset "Code quality (Aqua.jl)" begin
-        Aqua.test_all(SymbolicLimits, deps_compat=false, ambiguities=false)
-        Aqua.test_deps_compat(SymbolicLimits, check_extras=false)
+        Aqua.test_all(SymbolicLimits, deps_compat = false, ambiguities = false)
+        Aqua.test_deps_compat(SymbolicLimits, check_extras = false)
     end
 
     @testset "Tests that failed during initial development phase 1" begin
@@ -15,9 +15,11 @@ using Aqua
             @test_broken SymbolicLimits.zero_equivalence(exp((x+1)*x - x*x-x)-1, Set{Any}())
 
             @test SymbolicLimits.get_leading_exponent(x^2, x, nothing, Set{Any}()) == 2
-            @test SymbolicLimits.get_series_term(log(exp(x)), x, nothing, 1, Set{Any}()) == 1
+            @test SymbolicLimits.get_series_term(log(exp(x)), x, nothing, 1, Set{Any}()) ==
+                  1
             @test SymbolicLimits.get_series_term(log(exp(x)), x, -x, 0, Set{Any}()) == 0
-            @test SymbolicLimits.get_series_term(log(exp(x)), x, nothing, 2, Set{Any}()) == 0
+            @test SymbolicLimits.get_series_term(log(exp(x)), x, nothing, 2, Set{Any}()) ==
+                  0
 
             # F = exp(x+exp(-x))-exp(x)
             # Ω = {exp(x + exp(-x)), exp(x), exp(-x)}
@@ -35,7 +37,10 @@ using Aqua
             # c = lim(s/t) = lim((x+exp(-x))/-x) = -1
             # f = exp(s-ct)*ω^c = exp(x+exp(-x)-c*t)*ω^-1 = exp(exp(-x))/ω
 
-            @test SymbolicLimits.zero_equivalence(SymbolicLimits.rewrite(exp(x+exp(-x)), ω, -x, x, Set{Any}()) - exp(exp(-x))/ω, Set{Any}()) # it works if you define `limit(args...) = -1`
+            @test SymbolicLimits.zero_equivalence(
+                SymbolicLimits.rewrite(exp(x+exp(-x)), ω, -x, x, Set{Any}()) -
+                exp(exp(-x))/ω,
+                Set{Any}()) # it works if you define `limit(args...) = -1`
 
             # F = exp(exp(-x))/ω - exp(x)
 
@@ -55,32 +60,39 @@ using Aqua
                 @test SymbolicLimits.get_series_term(F, ω, h, 0, Set{Any}()) == 1 # the correct final answer
             end
 
-            function test(expr, leading_exp, series, sym=x)
+            function test(expr, leading_exp, series, sym = x)
                 lt = SymbolicLimits.get_leading_exponent(expr, sym, nothing, Set{Any}())
                 @test lt === leading_exp
-                for (i,val) in enumerate(series)
-                    @test SymbolicLimits.get_series_term(expr, sym, nothing, lt+i-1, Set{Any}()) === val
+                for (i, val) in enumerate(series)
+                    @test SymbolicLimits.get_series_term(
+                        expr, sym, nothing, lt+i-1, Set{Any}()) === val
                 end
-                for i in leading_exp-10:leading_exp-1
-                    @test SymbolicLimits.get_series_term(expr, sym, nothing, i, Set{Any}()) === 0
+                for i in (leading_exp - 10):(leading_exp - 1)
+                    @test SymbolicLimits.get_series_term(
+                        expr, sym, nothing, i, Set{Any}()) === 0
                 end
             end
-            test(x, 1, [1,0,0,0,0,0])
-            test(x^2, 2, [1,0,0,0,0,0])
-            test(x^2+x, 1, [1,1,0,0,0,0])
+            test(x, 1, [1, 0, 0, 0, 0, 0])
+            test(x^2, 2, [1, 0, 0, 0, 0, 0])
+            test(x^2+x, 1, [1, 1, 0, 0, 0, 0])
 
-            @test SymbolicLimits.recursive([1,[2,3]]) do f, arg
+            @test SymbolicLimits.recursive([1, [2, 3]]) do f, arg
                 arg isa AbstractArray ? sum(f, arg) : arg
             end == 6
 
-            @test only(SymbolicLimits.most_rapidly_varying_subexpressions(exp(x), x, Set{Any}())) - exp(x) === 0 # works if you define `limit(args...) = Inf`
+            @test only(SymbolicLimits.most_rapidly_varying_subexpressions(exp(x), x, Set{Any}())) -
+                  exp(x) === 0 # works if you define `limit(args...) = Inf`
             @test all(i -> i === x, SymbolicLimits.most_rapidly_varying_subexpressions(x+2(x+1), x, Set{Any}())) # works if you define `limit(args...) = 1`
 
             @test SymbolicLimits.log_exp_simplify(x) === x
-            @test SymbolicLimits.zero_equivalence(SymbolicLimits.log_exp_simplify(exp(x)) - exp(x), Set{Any}())
-            @test SymbolicLimits.zero_equivalence(SymbolicLimits.log_exp_simplify(exp(log(x))) - exp(log(x)), Set{Any}())
+            @test SymbolicLimits.zero_equivalence(
+                SymbolicLimits.log_exp_simplify(exp(x)) -
+                exp(x), Set{Any}())
+            @test SymbolicLimits.zero_equivalence(
+                SymbolicLimits.log_exp_simplify(exp(log(x))) - exp(log(x)), Set{Any}())
             @test SymbolicLimits.log_exp_simplify(log(exp(x))) === x
-            @test SymbolicLimits.zero_equivalence(SymbolicLimits.log_exp_simplify(log(exp(log(x)))) - log(x), Set{Any}())
+            @test SymbolicLimits.zero_equivalence(
+                SymbolicLimits.log_exp_simplify(log(exp(log(x)))) - log(x), Set{Any}())
             @test (SymbolicLimits.log_exp_simplify(log(exp(1+x))) - (1+x)) === 0
             @test SymbolicLimits.log_exp_simplify(log(log(exp(exp(x))))) === x
             @test SymbolicLimits.log_exp_simplify(log(exp(log(exp(x))))) === x
@@ -119,10 +131,12 @@ using Aqua
             @test limit(x^7/exp(x), x, Inf)[1] == 0
             @test_broken limit((arccos(x + h) - arccos(x))/h, h, 0, :right)[1] == _unknown_
             @test_broken limit(1/(x^log(log(log(log(1/x-1))))), x, 0, :right)[1] == Inf
-            @test_broken limit((erf(x - exp(-exp(x)))-erf(x))*exp(exp(x))*exp(x^2), x, Inf)[1] ≈ -2/√π
+            @test_broken limit((erf(x - exp(-exp(x)))-erf(x))*exp(exp(x))*exp(x^2), x, Inf)[1] ≈
+                         -2/√π
             @test_broken limit(exp(csc(x))/exp(cot(x)), x, 0)[1] == 1
             @test_broken limit(exp(x)*(sin(1/x+exp(-x)) - sin(1/x)), x, Inf)[1] == 1
-            @test limit(log(log(x*exp(x*exp(x))+1))-exp(exp(log(log(x))+1/x)), x, Inf)[1] == 0
+            @test limit(log(log(x*exp(x*exp(x))+1))-exp(exp(log(log(x))+1/x)), x, Inf)[1] ==
+                  0
             @test limit(2exp(-x)/exp(-x), x, 0)[1] == 2
             @test_broken limit(exp(csc(x))/exp(cot(x)), x, 0)[1] == 1
         end

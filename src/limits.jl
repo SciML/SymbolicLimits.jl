@@ -58,14 +58,16 @@ Compute the limit of `expr` as `x` approaches infinity and return `(limit, assum
 This is the internal API boundary between the internal limits.jl file and the public
 SymbolicLimits.jl file
 """
-function limit_inf(expr, x::BasicSymbolic{Field}) where Field
+function limit_inf(expr, x::BasicSymbolic{Field}) where {Field}
     assumptions = Set{Any}()
     limit = signed_limit_inf(expr, x, assumptions)[1]
     limit, assumptions
 end
 
-signed_limit_inf(expr::Field, x::BasicSymbolic{Field}, assumptions) where Field = expr, sign(expr)
-function signed_limit_inf(expr::BasicSymbolic{Field}, x::BasicSymbolic{Field}, assumptions) where Field
+function signed_limit_inf(expr::Field, x::BasicSymbolic{Field}, assumptions) where {Field}
+    expr, sign(expr)
+end
+function signed_limit_inf(expr::BasicSymbolic{Field}, x::BasicSymbolic{Field}, assumptions) where {Field}
     expr === x && return (Inf, 1)
 
     Ω = most_rapidly_varying_subexpressions(expr, x, assumptions)
@@ -82,10 +84,10 @@ function signed_limit_inf(expr::BasicSymbolic{Field}, x::BasicSymbolic{Field}, a
         expr = log_exp_simplify(expr)
         # Ω = most_rapidly_varying_subexpressions(expr, x) NO! this line could lead to infinite recursion
         Ω = [log_exp_simplify(recursive(expr) do f, ex
-                ex isa BasicSymbolic{Field} || return ex
-                exprtype(ex) == SYM && return ex === x ? exp(x) : ex
-                operation(ex)(f.(arguments(ex))...)
-            end) for expr in Ω]
+                 ex isa BasicSymbolic{Field} || return ex
+                 exprtype(ex) == SYM && return ex === x ? exp(x) : ex
+                 operation(ex)(f.(arguments(ex))...)
+             end) for expr in Ω]
         ω_val = last(Ω)
     end
 
@@ -137,28 +139,37 @@ end
 log_exp_simplify(expr) = expr
 function log_exp_simplify(expr::BasicSymbolic)
     exprtype(expr) == SYM && return expr
-    exprtype(expr) == TERM && operation(expr) == log || return operation(expr)(log_exp_simplify.(arguments(expr))...)
+    exprtype(expr) == TERM && operation(expr) == log ||
+        return operation(expr)(log_exp_simplify.(arguments(expr))...)
     arg = log_exp_simplify(only(arguments(expr)))
     # TODO: return _log(arg)
-    arg isa BasicSymbolic && exprtype(arg) == TERM && operation(arg) == exp || return log(arg)
+    arg isa BasicSymbolic && exprtype(arg) == TERM && operation(arg) == exp ||
+        return log(arg)
     only(arguments(arg))
 end
 
-
-"""cancels log(exp(x)) and exp(log(x)), the latter may extend the domain"""
+"""
+cancels log(exp(x)) and exp(log(x)), the latter may extend the domain
+"""
 strong_log_exp_simplify(expr) = expr
 function strong_log_exp_simplify(expr::BasicSymbolic)
     exprtype(expr) == SYM && return expr
-    exprtype(expr) == TERM && operation(expr) in (log, exp) || return operation(expr)(strong_log_exp_simplify.(arguments(expr))...)
+    exprtype(expr) == TERM && operation(expr) in (log, exp) ||
+        return operation(expr)(strong_log_exp_simplify.(arguments(expr))...)
     arg = strong_log_exp_simplify(only(arguments(expr)))
     # TODO: return _log(arg)
-    arg isa BasicSymbolic && exprtype(arg) == TERM && operation(arg) in (log, exp) && operation(arg) != operation(expr) || return operation(expr)(arg)
+    arg isa BasicSymbolic && exprtype(arg) == TERM && operation(arg) in (log, exp) &&
+    operation(arg) != operation(expr) || return operation(expr)(arg)
     only(arguments(arg))
 end
 
-most_rapidly_varying_subexpressions(expr::Field, x::BasicSymbolic{Field}, assumptions) where Field = []
-function most_rapidly_varying_subexpressions(expr::BasicSymbolic{Field}, x::BasicSymbolic{Field}, assumptions) where Field
-    exprtype(x) == SYM || throw(ArgumentError("Must expand with respect to a symbol. Got $x"))
+function most_rapidly_varying_subexpressions(expr::Field, x::BasicSymbolic{Field}, assumptions) where {Field}
+    []
+end
+function most_rapidly_varying_subexpressions(
+        expr::BasicSymbolic{Field}, x::BasicSymbolic{Field}, assumptions) where {Field}
+    exprtype(x) == SYM ||
+        throw(ArgumentError("Must expand with respect to a symbol. Got $x"))
     # TODO: this is slow. This whole algorithm is slow. Profile, benchmark, and optimize it.
     et = exprtype(expr)
     ret = if et == SYM
@@ -184,7 +195,8 @@ function most_rapidly_varying_subexpressions(expr::BasicSymbolic{Field}, x::Basi
             error("Not implemented: $op")
         end
     elseif et ∈ (ADD, MUL, DIV)
-        mapreduce(expr -> most_rapidly_varying_subexpressions(expr, x, assumptions), mrv_join(x, assumptions), arguments(expr), init=[])
+        mapreduce(expr -> most_rapidly_varying_subexpressions(expr, x, assumptions),
+            mrv_join(x, assumptions), arguments(expr), init = [])
     elseif et == POW
         args = arguments(expr)
         @assert length(args) == 2
@@ -200,8 +212,9 @@ function most_rapidly_varying_subexpressions(expr::BasicSymbolic{Field}, x::Basi
     ret
 end
 
-is_exp_or_x(expr::BasicSymbolic, x::BasicSymbolic) =
+function is_exp_or_x(expr::BasicSymbolic, x::BasicSymbolic)
     expr === x || exprtype(expr) == TERM && operation(expr) == exp
+end
 
 """
     f ≺ g iff log(f)/log(g) -> 0
@@ -253,7 +266,8 @@ end
 rewrite `expr` in the form `Aω^c` such that `A` is less rapidly varying than `ω` and `c` is
 a real number. `ω` is a symbol that represents `exp(h)`.
 """
-function rewrite(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field}, h::BasicSymbolic{Field}, x::BasicSymbolic{Field}, assumptions) where Field
+function rewrite(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field},
+        h::BasicSymbolic{Field}, x::BasicSymbolic{Field}, assumptions) where {Field}
     @assert exprtype(expr) == TERM && operation(expr) == exp
     @assert exprtype(ω) == SYM
     @assert exprtype(x) == SYM
@@ -268,8 +282,10 @@ end
 """
 ω is a symbol that represents the expression exp(h).
 """
-function get_series_term(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field}, h, i::Int, assumptions) where Field
-    exprtype(ω) == SYM || throw(ArgumentError("Must expand with respect to a symbol. Got $ω"))
+function get_series_term(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field},
+        h, i::Int, assumptions) where {Field}
+    exprtype(ω) == SYM ||
+        throw(ArgumentError("Must expand with respect to a symbol. Got $ω"))
 
     et = exprtype(expr)
     if et == SYM
@@ -292,7 +308,8 @@ function get_series_term(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field}, h
                 for k in 1:i # the sum starts at 1
                     term = i ÷ k
                     if term * k == i # integral
-                        sm += (-get_series_term(arg, ω, h, term+exponent, assumptions)/t0)^k/k
+                        sm += (-get_series_term(
+                            arg, ω, h, term+exponent, assumptions)/t0)^k/k
                     end
                 end
                 # TODO: All these for loops are ugly and error-prone
@@ -314,7 +331,8 @@ function get_series_term(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field}, h
                     end
                 end
                 sm * exp(get_series_term(arg, ω, h, exponent, assumptions))
-            else @assert exponent > 0 # from the theory.
+            else
+                @assert exponent > 0 # from the theory.
                 # sum s^k/k!
                 for k in 1:i
                     term = i ÷ k
@@ -335,7 +353,7 @@ function get_series_term(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field}, h
         exponent1 = get_leading_exponent(arg1, ω, h, assumptions)
         exponent2 = get_leading_exponent(arg2, ω, h, assumptions)
         sm = zero(Field)
-        for j in exponent1:(i-exponent2)
+        for j in exponent1:(i - exponent2)
             t1 = get_series_term(arg1, ω, h, j, assumptions)
             t2 = get_series_term(arg2, ω, h, i-j, assumptions)
             sm += t1 * t2
@@ -364,7 +382,7 @@ function get_series_term(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field}, h
         den_leading_term = get_series_term(den, ω, h, den_exponent, assumptions)
         @assert !zero_equivalence(den_leading_term, assumptions)
         sm = zero(Field)
-        for j in num_exponent:i+den_exponent
+        for j in num_exponent:(i + den_exponent)
             t_num = get_series_term(num, ω, h, j, assumptions)
             exponent = i+den_exponent-j
             # TODO: refactor this to share code for the "sum of powers of a series" form
@@ -372,7 +390,8 @@ function get_series_term(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field}, h
             for k in 1:exponent
                 term = exponent ÷ k
                 if term * k == exponent # integral
-                    sm2 += (-get_series_term(den, ω, h, term+den_exponent, assumptions)/den_leading_term)^k
+                    sm2 += (-get_series_term(
+                        den, ω, h, term+den_exponent, assumptions)/den_leading_term)^k
                 end
             end
             sm += sm2 * t_num
@@ -382,13 +401,16 @@ function get_series_term(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field}, h
         error("Unknown Expr type: $et")
     end
 end
-function get_series_term(expr::Field, ω::BasicSymbolic{Field}, h, i::Int, assumptions) where Field
-    exprtype(ω) == SYM || throw(ArgumentError("Must expand with respect to a symbol. Got $ω"))
+function get_series_term(
+        expr::Field, ω::BasicSymbolic{Field}, h, i::Int, assumptions) where {Field}
+    exprtype(ω) == SYM ||
+        throw(ArgumentError("Must expand with respect to a symbol. Got $ω"))
     i == 0 ? expr : zero(Field)
 end
 
-function get_leading_exponent(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field}, h, assumptions) where Field
-    exprtype(ω) == SYM || throw(ArgumentError("Must expand with respect to a symbol. Got $ω"))
+function get_leading_exponent(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field}, h, assumptions) where {Field}
+    exprtype(ω) == SYM ||
+        throw(ArgumentError("Must expand with respect to a symbol. Got $ω"))
 
     zero_equivalence(expr, assumptions) && return Inf
 
@@ -410,7 +432,9 @@ function get_leading_exponent(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Fiel
             else
                 # There will never be a term with power less than 0, and the zero power term
                 # is log(T0) which is handled above with the "isone" check.
-                findfirst(i -> zero_equivalence(get_series_term(expr, ω, h, i, assumptions), assumptions), 1:typemax(Int))
+                findfirst(
+                    i -> zero_equivalence(get_series_term(expr, ω, h, i, assumptions), assumptions),
+                    1:typemax(Int))
             end
         elseif op == exp
             0
@@ -418,7 +442,8 @@ function get_leading_exponent(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Fiel
             error("Not implemented: $op")
         end
     elseif et == ADD
-        exponent = minimum(get_leading_exponent(arg, ω, h, assumptions) for arg in  arguments(expr))
+        exponent = minimum(get_leading_exponent(arg, ω, h, assumptions)
+        for arg in arguments(expr))
         for i in exponent:typemax(Int)
             sm = sum(get_series_term(arg, ω, h, i, assumptions) for arg in arguments(expr))
             if !zero_equivalence(sm, assumptions)
@@ -441,14 +466,16 @@ function get_leading_exponent(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Fiel
         args = arguments(expr)
         @assert length(args) == 2
         num, den = args
-         # The naive answer is actually correct. See the get_series_term implementation for how.
-        get_leading_exponent(num, ω, h, assumptions) - get_leading_exponent(den, ω, h, assumptions)
+        # The naive answer is actually correct. See the get_series_term implementation for how.
+        get_leading_exponent(num, ω, h, assumptions) -
+        get_leading_exponent(den, ω, h, assumptions)
     else
         error("Unknown Expr type: $et")
     end
 end
-function get_leading_exponent(expr::Field, ω::BasicSymbolic{Field}, h, assumptions) where Field
-    exprtype(ω) == SYM || throw(ArgumentError("Must expand with respect to a symbol. Got $ω"))
+function get_leading_exponent(expr::Field, ω::BasicSymbolic{Field}, h, assumptions) where {Field}
+    exprtype(ω) == SYM ||
+        throw(ArgumentError("Must expand with respect to a symbol. Got $ω"))
     zero_equivalence(expr, assumptions) ? Inf : 0
 end
 
@@ -460,9 +487,11 @@ function _log(x::BasicSymbolic, ω, h)
     log(x)
 end
 
-"""Is `expr` zero on its domain?"""
+"""
+Is `expr` zero on its domain?
+"""
 function zero_equivalence(expr, assumptions)
-    res = iszero(simplify(strong_log_exp_simplify(expr), expand=true)) === true
+    res = iszero(simplify(strong_log_exp_simplify(expr), expand = true)) === true
     push!(assumptions, res ? iszero(expr) : !iszero(expr))
     res
 end
