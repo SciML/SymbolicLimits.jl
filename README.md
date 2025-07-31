@@ -37,7 +37,10 @@ thrown. Side defaults to `:both` for finite `h`, `:left` for `h = Inf`, and `:ri
 ## Demo
 
 ```julia
-using Pkg; pkg"activate --temp"; pkg"add https://github.com/LilithHafner/SymbolicLimits.jl"; pkg"add SymbolicUtils" # slow
+using Pkg;
+pkg"activate --temp";
+pkg"add https://github.com/LilithHafner/SymbolicLimits.jl";
+pkg"add SymbolicUtils" # slow
 
 using SymbolicLimits, SymbolicUtils # slow
 
