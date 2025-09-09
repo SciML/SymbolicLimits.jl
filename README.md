@@ -1,7 +1,3 @@
-# STATUS: Beta
-
-This project is young and has never been used in production before. Expect to help find and report bugs if you use this project.
-
 # SymbolicLimits
 
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://LilithHafner.github.io/SymbolicLimits.jl/stable/)
