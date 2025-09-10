@@ -48,12 +48,3 @@ The package implements the Gruntz algorithm (1996), which handles limits by:
 ```@autodocs
 Modules = [SymbolicLimits]
 ```
-
-## Internal Functions
-
-The following functions are part of the internal implementation and may be useful for understanding the algorithm:
-
-```@autodocs
-Modules = [SymbolicLimits]
-Private = true
-```
