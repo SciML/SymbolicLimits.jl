@@ -32,6 +32,14 @@ using SymbolicUtils
 using SymbolicUtils: BasicSymbolic, exprtype
 using SymbolicUtils: SYM, TERM, ADD, MUL, POW, DIV
 
+"""
+    is_exp(expr)
+
+Check if an expression is of the form `exp(...)`.
+
+Returns `true` if `expr` is a symbolic expression with the exponential function as its operation,
+`false` otherwise.
+"""
 is_exp(expr) = false
 is_exp(expr::BasicSymbolic) = exprtype(expr) == TERM && operation(expr) == exp
 
@@ -64,6 +72,29 @@ function limit_inf(expr, x::BasicSymbolic{Field}) where {Field}
     limit, assumptions
 end
 
+"""
+    signed_limit_inf(expr, x, assumptions)
+
+Compute the limit of `expr` as `x` approaches infinity and return `(limit, sign)`.
+This function handles both symbolic expressions and scalar values, tracking assumptions
+made during the computation.
+
+For scalar expressions, returns `(expr, sign(expr))`.
+For symbolic expressions, applies the Gruntz algorithm to compute the limit.
+
+# Arguments
+
+  - `expr`: The expression to take the limit of
+  - `x`: The variable approaching infinity
+  - `assumptions`: A set to track assumptions made during computation
+
+# Returns
+
+A tuple `(limit, sign)` where:
+
+  - `limit`: The computed limit value
+  - `sign`: The sign of the limit
+"""
 function signed_limit_inf(expr::Field, x::BasicSymbolic{Field}, assumptions) where {Field}
     expr, sign(expr)
 end
@@ -130,12 +161,44 @@ function signed_limit_inf(expr::BasicSymbolic{Field}, x::BasicSymbolic{Field}, a
     res
 end
 
+"""
+    recursive(f, args...)
+
+Apply function `f` recursively to its arguments, where `f` takes the recursive function as its first argument.
+
+This utility function enables recursive operations on nested expressions by passing the recursive
+function itself as the first argument to `f`.
+
+# Example
+
+```julia
+recursive(expr) do f, ex
+    # f is the recursive function, ex is the current expression
+    # Apply f to subexpressions and build the result
+end
+```
+"""
 function recursive(f, args...)
     g(args...) = f(g, args...)
     g(args...)
 end
 
-# TODO: use recursive or @rrule
+"""
+    log_exp_simplify(expr)
+
+Simplify expressions by canceling `log(exp(x))` → `x` transformations.
+
+This function performs basic log-exp simplifications that are always valid, specifically
+canceling `log(exp(x))` to `x`. This is a conservative simplification that doesn't extend domains.
+
+# Arguments
+
+  - `expr`: The expression to simplify
+
+# Returns
+
+The simplified expression with log-exp cancellations applied.
+"""
 log_exp_simplify(expr) = expr
 function log_exp_simplify(expr::BasicSymbolic)
     exprtype(expr) == SYM && return expr
@@ -163,6 +226,26 @@ function strong_log_exp_simplify(expr::BasicSymbolic)
     only(arguments(arg))
 end
 
+"""
+    most_rapidly_varying_subexpressions(expr, x, assumptions)
+
+Find the most rapidly varying subexpressions (MRV set) in `expr` with respect to `x`.
+
+The MRV set consists of subexpressions that grow most rapidly as `x` approaches infinity.
+This is a key component of the Gruntz algorithm for computing symbolic limits.
+
+For scalar expressions, returns an empty list.
+
+# Arguments
+
+  - `expr`: The expression to analyze
+  - `x`: The variable with respect to which we find rapidly varying subexpressions
+  - `assumptions`: A set to track assumptions made during computation
+
+# Returns
+
+A list of the most rapidly varying subexpressions in `expr`.
+"""
 function most_rapidly_varying_subexpressions(expr::Field, x::BasicSymbolic{Field}, assumptions) where {Field}
     []
 end
@@ -217,7 +300,31 @@ function is_exp_or_x(expr::BasicSymbolic, x::BasicSymbolic)
 end
 
 """
-    f ≺ g iff log(f)/log(g) -> 0
+    compare_variance_rapidity(expr1, expr2, x, assumptions)
+
+Compare the rapidity of growth between two expressions as `x` approaches infinity.
+
+Returns:
+
+  - `-1` if `expr1` grows slower than `expr2` (i.e., `expr1 ≺ expr2`)
+  - `0` if `expr1` and `expr2` grow at the same rate (i.e., `expr1 ≍ expr2`)
+  - `1` if `expr1` grows faster than `expr2` (i.e., `expr1 ≻ expr2`)
+
+The comparison is based on the limit of `log(expr1)/log(expr2)` as `x` approaches infinity:
+
+  - `f ≺ g` iff `log(f)/log(g) → 0`
+  - `f ≍ g` iff `log(f)/log(g) → c` for some finite nonzero constant `c`
+  - `f ≻ g` iff `log(f)/log(g) → ∞`
+
+# Arguments
+
+  - `expr1`, `expr2`: Expressions to compare (must be of the form `x` or `exp(...)`).
+  - `x`: The variable approaching infinity
+  - `assumptions`: A set to track assumptions made during computation
+
+# Returns
+
+An integer (-1, 0, or 1) indicating the relative growth rates.
 """
 function compare_variance_rapidity(expr1, expr2, x, assumptions)
     @assert is_exp_or_x(expr1, x)
@@ -263,8 +370,28 @@ function mrv_join(x, assumptions)
 end
 
 """
-rewrite `expr` in the form `Aω^c` such that `A` is less rapidly varying than `ω` and `c` is
-a real number. `ω` is a symbol that represents `exp(h)`.
+    rewrite(expr, ω, h, x, assumptions)
+
+Rewrite `expr` in the form `A⋅ω^c` where `A` is less rapidly varying than `ω` and `c` is a real number.
+
+This function takes an exponential expression and rewrites it in terms of a distinguished
+exponential subexpression `ω`. The symbol `ω` represents `exp(h)` where `h` is the argument
+of the most rapidly varying exponential.
+
+The rewriting follows the formula: if `expr = exp(s)` and `ω = exp(h)`, then we compute
+`c = lim(s/h, x, ∞)` and rewrite as `exp(s-c⋅h) ⋅ ω^c`.
+
+# Arguments
+
+  - `expr`: An exponential expression to rewrite (must be of the form `exp(...)`)
+  - `ω`: A symbol representing the distinguished exponential `exp(h)`
+  - `h`: The argument of the distinguished exponential
+  - `x`: The variable approaching infinity
+  - `assumptions`: A set to track assumptions made during computation
+
+# Returns
+
+An expression of the form `A⋅ω^c` where `A` is less rapidly varying than `ω`.
 """
 function rewrite(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field},
         h::BasicSymbolic{Field}, x::BasicSymbolic{Field}, assumptions) where {Field}
@@ -280,7 +407,27 @@ function rewrite(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field},
 end
 
 """
-ω is a symbol that represents the expression exp(h).
+    get_series_term(expr, ω, h, i, assumptions)
+
+Get the coefficient of `ω^i` in the series expansion of `expr` around the most rapidly varying term.
+
+This function computes the `i`-th coefficient in the series expansion of `expr` in powers of `ω`,
+where `ω` represents the expression `exp(h)`. The expansion takes the form:
+`expr = c₀ + c₁⋅ω + c₂⋅ω² + ...`
+
+This is a core component of the Gruntz algorithm for computing limits.
+
+# Arguments
+
+  - `expr`: The expression to expand
+  - `ω`: A symbol representing the distinguished exponential `exp(h)`
+  - `h`: The argument of the distinguished exponential
+  - `i`: The power of `ω` for which to compute the coefficient
+  - `assumptions`: A set to track assumptions made during computation
+
+# Returns
+
+The coefficient of `ω^i` in the series expansion of `expr`.
 """
 function get_series_term(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field},
         h, i::Int, assumptions) where {Field}
@@ -408,6 +555,28 @@ function get_series_term(
     i == 0 ? expr : zero(Field)
 end
 
+"""
+    get_leading_exponent(expr, ω, h, assumptions)
+
+Find the leading (smallest) exponent in the series expansion of `expr` in powers of `ω`.
+
+This function determines the power of the leading term in the series expansion:
+`expr = c_{e}⋅ω^e + c_{e+1}⋅ω^{e+1} + ...`
+where `e` is the leading exponent (the smallest exponent with a non-zero coefficient).
+
+Returns `Inf` if `expr` is equivalent to zero.
+
+# Arguments
+
+  - `expr`: The expression to analyze
+  - `ω`: A symbol representing the distinguished exponential `exp(h)`
+  - `h`: The argument of the distinguished exponential
+  - `assumptions`: A set to track assumptions made during computation
+
+# Returns
+
+The leading exponent `e`, or `Inf` if `expr` is equivalent to zero.
+"""
 function get_leading_exponent(expr::BasicSymbolic{Field}, ω::BasicSymbolic{Field}, h, assumptions) where {Field}
     exprtype(ω) == SYM ||
         throw(ArgumentError("Must expand with respect to a symbol. Got $ω"))
@@ -488,7 +657,29 @@ function _log(x::BasicSymbolic, ω, h)
 end
 
 """
-Is `expr` zero on its domain?
+    zero_equivalence(expr, assumptions)
+
+Determine if `expr` is equivalent to zero on its domain using heuristic methods.
+
+This function uses symbolic simplification to determine if an expression is zero.
+Since zero equivalence of general expressions is undecidable, this function uses heuristics
+and records the result as an assumption that must hold for the computed limit to be correct.
+
+The function applies strong log-exp simplification and algebraic expansion before testing
+for zero equivalence.
+
+# Arguments
+
+  - `expr`: The expression to test for zero equivalence
+  - `assumptions`: A set to record assumptions made (updated in-place)
+
+# Returns
+
+`true` if the expression is determined to be zero, `false` otherwise.
+
+# Side Effects
+
+Adds an assumption about the zero-equivalence of `expr` to the `assumptions` set.
 """
 function zero_equivalence(expr, assumptions)
     res = iszero(simplify(strong_log_exp_simplify(expr), expand = true)) === true
