@@ -80,8 +80,8 @@ using Aqua
                 arg isa AbstractArray ? sum(f, arg) : arg
             end == 6
 
-            @test only(SymbolicLimits.most_rapidly_varying_subexpressions(exp(x), x, Set{Any}())) -
-                  exp(x) === 0 # works if you define `limit(args...) = Inf`
+            @test unwrap_const(only(SymbolicLimits.most_rapidly_varying_subexpressions(exp(x), x, Set{Any}())) -
+                  exp(x)) === 0 # works if you define `limit(args...) = Inf`
             @test all(i -> i === x, SymbolicLimits.most_rapidly_varying_subexpressions(x+2(x+1), x, Set{Any}())) # works if you define `limit(args...) = 1`
 
             @test SymbolicLimits.log_exp_simplify(x) === x
@@ -93,7 +93,7 @@ using Aqua
             @test SymbolicLimits.log_exp_simplify(log(exp(x))) === x
             @test SymbolicLimits.zero_equivalence(
                 SymbolicLimits.log_exp_simplify(log(exp(log(x)))) - log(x), Set{Any}())
-            @test (SymbolicLimits.log_exp_simplify(log(exp(1+x))) - (1+x)) === 0
+            @test unwrap_const(SymbolicLimits.log_exp_simplify(log(exp(1+x))) - (1+x)) === 0
             @test SymbolicLimits.log_exp_simplify(log(log(exp(exp(x))))) === x
             @test SymbolicLimits.log_exp_simplify(log(exp(log(exp(x))))) === x
         end
@@ -109,7 +109,7 @@ using Aqua
             @syms x::Real ω::Real
             @test limit(-1/x, x) === 0
             @test limit(-x / log(x), x) === -Inf
-            @test only(mrv_join(x)([exp(x)], [x])) - exp(x) === 0
+            @test unwrap_const(only(mrv_join(x)([exp(x)], [x])) - exp(x)) === 0
             @test signed_limit(exp(exp(-x))-1, x) == (0, 1)
             @test limit(exp(x+exp(-x))-exp(x), x) == 1
             @test limit(x^7/exp(x), x) == 0
