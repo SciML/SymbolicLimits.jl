@@ -1,9 +1,9 @@
 # SymbolicLimits
 
-[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://LilithHafner.github.io/SymbolicLimits.jl/stable/)
-[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://LilithHafner.github.io/SymbolicLimits.jl/dev/)
-[![Build Status](https://github.com/LilithHafner/SymbolicLimits.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/LilithHafner/SymbolicLimits.jl/actions/workflows/CI.yml?query=branch%3Amain)
-[![Coverage](https://codecov.io/gh/LilithHafner/SymbolicLimits.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/LilithHafner/SymbolicLimits.jl)
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://docs.sciml.ai/SymbolicLimits/stable/)
+[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://docs.sciml.ai/SymbolicLimits/dev/)
+[![Build Status](https://github.com/SciML/SymbolicLimits.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/SciML/SymbolicLimits.jl/actions/workflows/CI.yml?query=branch%3Amain)
+[![Coverage](https://codecov.io/gh/SciML/SymbolicLimits.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/SciML/SymbolicLimits.jl)
 [![PkgEval](https://JuliaCI.github.io/NanosoldierReports/pkgeval_badges/S/SymbolicLimits.svg)](https://JuliaCI.github.io/NanosoldierReports/pkgeval_badges/S/SymbolicLimits.html)
 [![Aqua](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
 
@@ -11,8 +11,8 @@
 
 Zero equivalence of log-exp functions is undecidable and reducible to computing symbolic limits. Specifically, to
 determine if the expression `x` is zero, compute the limit `limit(ϵ/(x + ϵ), ϵ, 0)`, which is 1 if `x == 0` and 0
-if `x != 0`. This package implements a reduction in the reverse direction, and always produces an answer and
-terminates. To avoid the undecidability issue, SymbolicLimits utilizes a heuristic iszero detector and, tracks all
+if `x != 0`. This package implements a reduction in the reverse direction and always produces an answer and
+terminates. To avoid the undecidability issue, SymbolicLimits utilizes a heuristic iszero detector and tracks all
 its results as assumptions. The returned result is correct if the assumptions all hold. In practice, the heuristic
 is pretty good and the assumptions typically all hold.
 
@@ -35,7 +35,7 @@ thrown. Side defaults to `:both` for finite `h`, `:left` for `h = Inf`, and `:ri
 ```julia
 using Pkg;
 pkg"activate --temp";
-pkg"add https://github.com/LilithHafner/SymbolicLimits.jl";
+pkg"add SymbolicLimits";
 pkg"add SymbolicUtils" # slow
 
 using SymbolicLimits, SymbolicUtils # slow
