@@ -1,7 +1,7 @@
 name = "SymbolicLimits"
 uuid = "19f23fe9-fdab-4a78-91af-e7b7767979c3"
 authors = ["Lilith Orion Hafner <lilithhafner@gmail.com> and contributors"]
-version = "0.2.4"
+version = "0.2.5"
 
 [deps]
 SymbolicUtils = "d1185830-fcd6-423d-90d6-eec64667417b"
