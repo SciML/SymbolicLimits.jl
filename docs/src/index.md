@@ -39,7 +39,7 @@ Since zero equivalence is undecidable, SymbolicLimits uses heuristics and tracks
 The package implements the Gruntz algorithm (1996), which handles limits by:
 
 1. Finding most rapidly varying subexpressions (MRV sets)
-2. Rewriting expressions in terms of distinguished subexpressions  
+2. Rewriting expressions in terms of distinguished subexpressions
 3. Computing series expansions around the most varying terms
 4. Extracting leading coefficients and exponents
 
