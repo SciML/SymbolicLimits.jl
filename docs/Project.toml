@@ -4,4 +4,4 @@ SymbolicLimits = "19f23fe9-fdab-4a78-91af-e7b7767979c3"
 
 [compat]
 Documenter = "1.16.1"
-SymbolicLimits = "0.2.4"
+SymbolicLimits = "0.2.4, 1.0"
