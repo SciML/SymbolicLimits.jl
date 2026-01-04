@@ -22,7 +22,7 @@ limit(expr, var::BasicSymbolic, h) = limit(expr, var, h, _AUTO)
 limit(expr, var::BasicSymbolic, h, side::Symbol) = expr
 function limit(expr::BasicSymbolic, var::BasicSymbolic, h, side::Symbol)
     side ∈ (:left, :right, :both, _AUTO) || throw(ArgumentError("Unknown side: $side"))
-    if isinf(h)
+    return if isinf(h)
         if signbit(h)
             side ∈ (:right, _AUTO) ||
                 throw(ArgumentError("Cannot take limit on the $side side of -Inf"))
@@ -34,14 +34,14 @@ function limit(expr::BasicSymbolic, var::BasicSymbolic, h, side::Symbol)
         end
     else
         if side == :left
-            limit_inf(SymbolicUtils.substitute(expr, Dict(var => h-1/var)), var)
+            limit_inf(SymbolicUtils.substitute(expr, Dict(var => h - 1 / var)), var)
         elseif side == :right
-            limit_inf(SymbolicUtils.substitute(expr, Dict(var => h+1/var)), var)
+            limit_inf(SymbolicUtils.substitute(expr, Dict(var => h + 1 / var)), var)
         else
             @assert side ∈ (:both, _AUTO)
-            left = limit_inf(SymbolicUtils.substitute(expr, Dict(var => h-1/var)), var)
-            right = limit_inf(SymbolicUtils.substitute(expr, Dict(var => h+1/var)), var)
-            zero_equivalence(left[1]-right[1], left[2]) ||
+            left = limit_inf(SymbolicUtils.substitute(expr, Dict(var => h - 1 / var)), var)
+            right = limit_inf(SymbolicUtils.substitute(expr, Dict(var => h + 1 / var)), var)
+            zero_equivalence(left[1] - right[1], left[2]) ||
                 throw(ArgumentError("The left sided limit ($(left[1])) and right sided limit ($(right[1])) are not equal"))
             right[1], union(left[2], right[2])
         end
