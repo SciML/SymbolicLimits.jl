@@ -150,4 +150,14 @@ using Aqua
         @test limit(1/x, x, 0, :left)[1] == -Inf
         @test limit(1/x, x, 0, :right)[1] == Inf
     end
+
+    @testset "Limits approaching -Inf (issue #13)" begin
+        @syms x::Real
+        # x * exp(x) -> 0 as x -> -Inf because exp(x) dominates
+        @test limit(x * exp(x), x, -Inf)[1] == 0
+        # exp(x) -> 0 as x -> -Inf
+        @test limit(exp(x), x, -Inf)[1] == 0
+        # x^2 * exp(x) -> 0 as x -> -Inf
+        @test limit(x^2 * exp(x), x, -Inf)[1] == 0
+    end
 end
