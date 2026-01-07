@@ -26,7 +26,7 @@ function limit(expr::BasicSymbolic, var::BasicSymbolic, h, side::Symbol)
         if signbit(h)
             side ∈ (:right, _AUTO) ||
                 throw(ArgumentError("Cannot take limit on the $side side of -Inf"))
-            limit_inf(SymbolicUtils.substitute(expr, Dict(var => -var), var))
+            limit_inf(SymbolicUtils.substitute(expr, Dict(var => -var)), var)
         else
             side ∈ (:left, _AUTO) ||
                 throw(ArgumentError("Cannot take limit on the $side side of Inf"))
