@@ -36,6 +36,25 @@ jobs:
       - uses: codecov/codecov-action@v5
         with:
           files: lcov.info
+  jet:
+    name: JET - Julia ${{ matrix.version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        version:
+          - '1'
+          - 'lts'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: ${{ matrix.version }}
+      - uses: julia-actions/cache@v2
+      - name: Run JET tests
+        shell: julia --color=yes {0}
+        run: |
+          include("test/jet/jet_tests.jl")
   docs:
     name: Documentation
     runs-on: ubuntu-latest
