@@ -69,7 +69,7 @@ SymbolicLimits.jl file
 function limit_inf(expr, x::BasicSymbolic)
     assumptions = Set{Any}()
     limit = signed_limit_inf(expr, x, assumptions)[1]
-    limit, assumptions
+    return limit, assumptions
 end
 
 """
@@ -97,7 +97,7 @@ A tuple `(limit, sign)` where:
 """
 function signed_limit_inf(expr::Field, x::BasicSymbolic, assumptions) where {Field}
     @assert symtype(x) <: Field || Field <: symtype(x)
-    expr, sign(expr)
+    return expr, sign(expr)
 end
 function signed_limit_inf(expr::BasicSymbolic{T}, x::BasicSymbolic{T}, assumptions) where {T}
     Field = symtype(expr)
@@ -117,11 +117,15 @@ function signed_limit_inf(expr::BasicSymbolic{T}, x::BasicSymbolic{T}, assumptio
         end
         expr = log_exp_simplify(expr)
         # Ω = most_rapidly_varying_subexpressions(expr, x) NO! this line could lead to infinite recursion
-        Ω = [log_exp_simplify(recursive(expr) do f, ex
-                 symtype(ex) === Field || return ex
-                 iscall(ex) || return ex === x ? exp(x) : ex
-                 operation(ex)(f.(arguments(ex))...)
-             end) for expr in Ω]
+        Ω = [
+            log_exp_simplify(
+                    recursive(expr) do f, ex
+                        symtype(ex) === Field || return ex
+                        iscall(ex) || return ex === x ? exp(x) : ex
+                        operation(ex)(f.(arguments(ex))...)
+                end
+                ) for expr in Ω
+        ]
         ω_val = last(Ω)
     end
 
@@ -161,7 +165,7 @@ function signed_limit_inf(expr::BasicSymbolic{T}, x::BasicSymbolic{T}, assumptio
     else
         leading_coefficient, lc_sign
     end
-    res
+    return res
 end
 
 """
@@ -183,7 +187,7 @@ end
 """
 function recursive(f, args...)
     g(args...) = f(g, args...)
-    g(args...)
+    return g(args...)
 end
 
 """
@@ -212,7 +216,7 @@ function log_exp_simplify(expr::BasicSymbolic)
     # TODO: return _log(arg)
     arg isa BasicSymbolic && isterm(arg) && operation(arg) == exp ||
         return log(arg)
-    only(arguments(arg))
+    return only(arguments(arg))
 end
 
 """
@@ -226,8 +230,8 @@ function strong_log_exp_simplify(expr::BasicSymbolic)
     arg = strong_log_exp_simplify(only(arguments(expr)))
     # TODO: return _log(arg)
     iscall(arg) && operation(arg) in (log, exp) &&
-    operation(arg) != operation(expr) || return operation(expr)(arg)
-    only(arguments(arg))
+        operation(arg) != operation(expr) || return operation(expr)(arg)
+    return only(arguments(arg))
 end
 
 """
@@ -252,10 +256,11 @@ A list of the most rapidly varying subexpressions in `expr`.
 """
 function most_rapidly_varying_subexpressions(expr::Field, x::BasicSymbolic{T}, assumptions) where {Field, T}
     @assert Field <: symtype(x)
-    []
+    return []
 end
 function most_rapidly_varying_subexpressions(
-        expr::BasicSymbolic{T}, x::BasicSymbolic{T}, assumptions) where {T}
+        expr::BasicSymbolic{T}, x::BasicSymbolic{T}, assumptions
+    ) where {T}
     Field = symtype(expr)
     @assert symtype(x) <: Field || Field <: symtype(x)
     issym(x) ||
@@ -296,16 +301,18 @@ function most_rapidly_varying_subexpressions(
             error("Not implemented: $op")
         end
     elseif isaddmul(expr) || isdiv(expr)
-        mapreduce(expr -> most_rapidly_varying_subexpressions(expr, x, assumptions),
-            mrv_join(x, assumptions), arguments(expr), init = [])
+        mapreduce(
+            expr -> most_rapidly_varying_subexpressions(expr, x, assumptions),
+            mrv_join(x, assumptions), arguments(expr), init = []
+        )
     else
         error("Unknown Expr type")
     end
-    ret
+    return ret
 end
 
 function is_exp_or_x(expr::BasicSymbolic, x::BasicSymbolic)
-    expr === x || iscall(expr) && operation(expr) == exp
+    return expr === x || iscall(expr) && operation(expr) == exp
 end
 
 """
@@ -356,7 +363,7 @@ function compare_variance_rapidity(expr1, expr2, x, assumptions)
     # isfinite(lim) && return 0
     # isinf(lim) && return 1
 
-    lim = signed_limit_inf(_log(expr1)/_log(expr2), x, assumptions)[1]
+    lim = signed_limit_inf(_log(expr1) / _log(expr2), x, assumptions)[1]
     SymbolicUtils._iszero(lim) && return -1
     isfinite(lim) && return 0
     isinf(lim) && return 1
@@ -364,11 +371,11 @@ function compare_variance_rapidity(expr1, expr2, x, assumptions)
 end
 
 function mrv_join(x, assumptions)
-    function (mrvs1, mrvs2)
+    return function (mrvs1, mrvs2)
         isempty(mrvs1) && return mrvs2
         isempty(mrvs2) && return mrvs1
         cmp = compare_variance_rapidity(first(mrvs1), first(mrvs2), x, assumptions)
-        if cmp == -1
+        return if cmp == -1
             mrvs2
         elseif cmp == 1
             mrvs1
@@ -402,8 +409,10 @@ The rewriting follows the formula: if `expr = exp(s)` and `ω = exp(h)`, then we
 
 An expression of the form `A⋅ω^c` where `A` is less rapidly varying than `ω`.
 """
-function rewrite(expr::BasicSymbolic{T}, ω::BasicSymbolic{T},
-        h::BasicSymbolic{T}, x::BasicSymbolic{T}, assumptions) where {T}
+function rewrite(
+        expr::BasicSymbolic{T}, ω::BasicSymbolic{T},
+        h::BasicSymbolic{T}, x::BasicSymbolic{T}, assumptions
+    ) where {T}
     Field = symtype(expr)
     _T = promote_type(symtype(ω), symtype(h), symtype(x))
     @assert _T !== Any
@@ -414,9 +423,9 @@ function rewrite(expr::BasicSymbolic{T}, ω::BasicSymbolic{T},
 
     s = only(arguments(expr))
     t = h
-    c = signed_limit_inf(s/t, x, assumptions)[1]
+    c = signed_limit_inf(s / t, x, assumptions)[1]
     @assert isfinite(c) && !SymbolicUtils._iszero(c)
-    exp(s-c*t)*ω^c # I wonder how this works with multiple variables...
+    return exp(s - c * t) * ω^c # I wonder how this works with multiple variables...
 end
 
 """
@@ -442,8 +451,10 @@ This is a core component of the Gruntz algorithm for computing limits.
 
 The coefficient of `ω^i` in the series expansion of `expr`.
 """
-function get_series_term(expr::BasicSymbolic{T}, ω::BasicSymbolic{T},
-        h, i::Int, assumptions) where {T}
+function get_series_term(
+        expr::BasicSymbolic{T}, ω::BasicSymbolic{T},
+        h, i::Int, assumptions
+    ) where {T}
     Field = symtype(expr)
     @assert symtype(ω) <: Field || Field <: symtype(ω)
     issym(ω) ||
@@ -464,15 +475,18 @@ function get_series_term(expr::BasicSymbolic{T}, ω::BasicSymbolic{T},
             exponent = get_leading_exponent(arg, ω, h, assumptions)
             t0 = get_series_term(arg, ω, h, exponent, assumptions)
             if i == 0
-                unwrap_const(_log(t0) + h*exponent) # _log(t0 * ω^exponent), but get the cancelation right.
+                unwrap_const(_log(t0) + h * exponent) # _log(t0 * ω^exponent), but get the cancelation right.
             else
                 # TODO: refactor this to share code for the "sum of powers of a series" form
                 sm = zero(Field)
                 for k in 1:i # the sum starts at 1
                     term = i ÷ k
                     if term * k == i # integral
-                        sm += (-get_series_term(
-                            arg, ω, h, term+exponent, assumptions)/t0)^k/k
+                        sm += (
+                            -get_series_term(
+                                arg, ω, h, term + exponent, assumptions
+                            ) / t0
+                        )^k / k
                     end
                 end
                 # TODO: All these for loops are ugly and error-prone
@@ -490,7 +504,7 @@ function get_series_term(expr::BasicSymbolic{T}, ω::BasicSymbolic{T},
                 for k in 1:i
                     term = i ÷ k
                     if term * k == i # integral
-                        sm += get_series_term(arg, ω, h, term, assumptions)^k/factorial(k) # this could overflow... oh well. It'll error if it does.
+                        sm += get_series_term(arg, ω, h, term, assumptions)^k / factorial(k) # this could overflow... oh well. It'll error if it does.
                     end
                 end
                 sm * exp(get_series_term(arg, ω, h, exponent, assumptions))
@@ -500,7 +514,7 @@ function get_series_term(expr::BasicSymbolic{T}, ω::BasicSymbolic{T},
                 for k in 1:i
                     term = i ÷ k
                     if term * k == i && term >= exponent # integral and not structural zero
-                        sm += get_series_term(arg, ω, h, term, assumptions)^k/factorial(k) # this could overflow... oh well. It'll error if it does.
+                        sm += get_series_term(arg, ω, h, term, assumptions)^k / factorial(k) # this could overflow... oh well. It'll error if it does.
                     end
                 end
                 sm
@@ -513,7 +527,7 @@ function get_series_term(expr::BasicSymbolic{T}, ω::BasicSymbolic{T},
             if exponent isa Real && isinteger(exponent) && exponent > 0
                 t = i ÷ exponent
                 if t * exponent == i # integral
-                    get_series_term(base, ω, h, t, assumptions) ^ exponent
+                    get_series_term(base, ω, h, t, assumptions)^exponent
                 else
                     zero(Field)
                 end
@@ -533,7 +547,7 @@ function get_series_term(expr::BasicSymbolic{T}, ω::BasicSymbolic{T},
         sm = zero(Field)
         for j in exponent1:(i - exponent2)
             t1 = get_series_term(arg1, ω, h, j, assumptions)
-            t2 = get_series_term(arg2, ω, h, i-j, assumptions)
+            t2 = get_series_term(arg2, ω, h, i - j, assumptions)
             sm += t1 * t2
         end
         sm
@@ -548,14 +562,17 @@ function get_series_term(expr::BasicSymbolic{T}, ω::BasicSymbolic{T},
         sm = zero(Field)
         for j in num_exponent:(i + den_exponent)
             t_num = get_series_term(num, ω, h, j, assumptions)
-            exponent = i+den_exponent-j
+            exponent = i + den_exponent - j
             # TODO: refactor this to share code for the "sum of powers of a series" form
             sm2 = exponent == 0 ? one(Field) : zero(Field) # k = 0 adds one to the sum
             for k in 1:exponent
                 term = exponent ÷ k
                 if term * k == exponent # integral
-                    sm2 += (-get_series_term(
-                        den, ω, h, term+den_exponent, assumptions)/den_leading_term)^k
+                    sm2 += (
+                        -get_series_term(
+                            den, ω, h, term + den_exponent, assumptions
+                        ) / den_leading_term
+                    )^k
                 end
             end
             sm += sm2 * t_num
@@ -566,11 +583,12 @@ function get_series_term(expr::BasicSymbolic{T}, ω::BasicSymbolic{T},
     end
 end
 function get_series_term(
-        expr::Field, ω::BasicSymbolic{T}, h, i::Int, assumptions) where {Field, T}
+        expr::Field, ω::BasicSymbolic{T}, h, i::Int, assumptions
+    ) where {Field, T}
     @assert symtype(ω) <: Field || Field <: symtype(ω)
     issym(ω) ||
         throw(ArgumentError("Must expand with respect to a symbol. Got $ω"))
-    i == 0 ? expr : zero(Field)
+    return i == 0 ? expr : zero(Field)
 end
 
 """
@@ -624,7 +642,8 @@ function get_leading_exponent(expr::BasicSymbolic{T}, ω::BasicSymbolic{T}, h, a
                 # is log(T0) which is handled above with the "isone" check.
                 findfirst(
                     i -> zero_equivalence(get_series_term(expr, ω, h, i, assumptions), assumptions),
-                    1:typemax(Int))
+                    1:typemax(Int)
+                )
             end
         elseif op == exp
             0
@@ -642,14 +661,16 @@ function get_leading_exponent(expr::BasicSymbolic{T}, ω::BasicSymbolic{T}, h, a
             error("Not implemented: $op")
         end
     elseif isadd(expr)
-        exponent = minimum(get_leading_exponent(arg, ω, h, assumptions)
-        for arg in arguments(expr))
+        exponent = minimum(
+            get_leading_exponent(arg, ω, h, assumptions)
+                for arg in arguments(expr)
+        )
         for i in exponent:typemax(Int)
             sm = sum(get_series_term(arg, ω, h, i, assumptions) for arg in arguments(expr))
             if !zero_equivalence(sm, assumptions)
                 return i
             end
-            i > exponent+1000 && error("This is likely due to known zero_equivalence bugs")
+            i > exponent + 1000 && error("This is likely due to known zero_equivalence bugs")
         end
     elseif ismul(expr)
         sum(get_leading_exponent(arg, ω, h, assumptions) for arg in arguments(expr))
@@ -659,7 +680,7 @@ function get_leading_exponent(expr::BasicSymbolic{T}, ω::BasicSymbolic{T}, h, a
         num, den = args
         # The naive answer is actually correct. See the get_series_term implementation for how.
         get_leading_exponent(num, ω, h, assumptions) -
-        get_leading_exponent(den, ω, h, assumptions)
+            get_leading_exponent(den, ω, h, assumptions)
     else
         error("Unknown Expr type")
     end
@@ -668,7 +689,7 @@ function get_leading_exponent(expr::Field, ω::BasicSymbolic{T}, h, assumptions)
     @assert symtype(ω) <: Field || Field <: symtype(ω)
     issym(ω) ||
         throw(ArgumentError("Must expand with respect to a symbol. Got $ω"))
-    zero_equivalence(expr, assumptions) ? Inf : 0
+    return zero_equivalence(expr, assumptions) ? Inf : 0
 end
 
 _log(x) = _log(x, nothing, nothing)
@@ -676,7 +697,7 @@ _log(x, ω, h) = log(x)
 function _log(x::BasicSymbolic, ω, h)
     iscall(x) && operation(x) == exp && return only(arguments(x))
     x === ω && return h
-    log(x)
+    return log(x)
 end
 
 """
@@ -707,5 +728,5 @@ Adds an assumption about the zero-equivalence of `expr` to the `assumptions` set
 function zero_equivalence(expr, assumptions)
     res = SymbolicUtils._iszero(simplify(strong_log_exp_simplify(expr), expand = true)) === true
     push!(assumptions, res ? SymbolicUtils._iszero(expr) : !SymbolicUtils._iszero(expr))
-    res
+    return res
 end
