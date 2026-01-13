@@ -52,9 +52,7 @@ jobs:
           version: ${{ matrix.version }}
       - uses: julia-actions/cache@v2
       - name: Run JET tests
-        shell: julia --color=yes {0}
-        run: |
-          include("test/jet/jet_tests.jl")
+        run: julia --color=yes test/jet/jet_tests.jl
   docs:
     name: Documentation
     runs-on: ubuntu-latest
