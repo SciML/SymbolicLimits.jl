@@ -1,13 +1,18 @@
+const GROUP = get(ENV, "GROUP", "All")
+
+if GROUP == "QA"
+    using Pkg
+    Pkg.activate(joinpath(@__DIR__, "qa"))
+    Pkg.develop(PackageSpec(path = dirname(@__DIR__)))
+    Pkg.instantiate()
+    include(joinpath(@__DIR__, "qa", "qa.jl"))
+end
+
+if GROUP == "All" || GROUP == "Core"
 using SymbolicLimits, SymbolicUtils
 using Test
-using Aqua
 
 @testset "SymbolicLimits.jl" begin
-    @testset "Code quality (Aqua.jl)" begin
-        Aqua.test_all(SymbolicLimits, deps_compat = false, ambiguities = false)
-        Aqua.test_deps_compat(SymbolicLimits, check_extras = false)
-    end
-
     @testset "Tests that failed during initial development phase 1" begin
         let
             @syms x::Real y::Real ω::Real
@@ -168,4 +173,5 @@ using Aqua
         # x^2 * exp(x) -> 0 as x -> -Inf
         @test limit(x^2 * exp(x), x, -Inf)[1] == 0
     end
+end
 end
