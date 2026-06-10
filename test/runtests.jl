@@ -1,3 +1,6 @@
+using SymbolicLimits, SymbolicUtils
+using Test
+
 const GROUP = get(ENV, "GROUP", "All")
 
 if GROUP == "QA"
@@ -9,9 +12,6 @@ if GROUP == "QA"
 end
 
 if GROUP == "All" || GROUP == "Core"
-using SymbolicLimits, SymbolicUtils
-using Test
-
 @testset "SymbolicLimits.jl" begin
     @testset "Tests that failed during initial development phase 1" begin
         let
