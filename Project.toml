@@ -9,6 +9,7 @@ TermInterface = "8ea1fca8-c5ef-4a55-8b96-4e9afe9c9a3c"
 
 [compat]
 Aqua = "0.8"
+SafeTestsets = "0.1, 1"
 SymbolicUtils = "4"
 TermInterface = "2.0"
 Test = "1"
@@ -17,7 +18,8 @@ julia = "1.10"
 [extras]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
+SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Aqua", "Pkg", "Test"]
+test = ["Aqua", "Pkg", "SafeTestsets", "Test"]
