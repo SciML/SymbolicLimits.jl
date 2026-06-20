@@ -11,6 +11,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref_name != github.event.repository.default_branch || github.ref != 'refs/tags/v*' }}
 
+# Required so the reusable workflow's GITHUB_TOKEN can push to gh-pages when no
+# DOCUMENTER_KEY SSH secret is configured. Without this the caller token is
+# read-only and Documenter's `git push` to gh-pages fails with HTTP 403.
+permissions:
+  contents: write
+  statuses: write
+
 jobs:
   build-and-deploy-docs:
     name: "Documentation"
