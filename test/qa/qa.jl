@@ -1,13 +1,24 @@
-using SymbolicLimits
-using Test
-using Aqua
+using SciMLTesting, SymbolicLimits, Test
 using JET
 
-@testset "Code quality (Aqua.jl)" begin
-    Aqua.test_all(SymbolicLimits, deps_compat = false, ambiguities = false)
-    Aqua.test_deps_compat(SymbolicLimits, check_extras = false)
-end
-
-@testset "Static analysis (JET.jl)" begin
-    JET.report_package("SymbolicLimits"; target_defined_modules = true)
-end
+run_qa(
+    SymbolicLimits;
+    explicit_imports = true,
+    ei_kwargs = (;
+        # Non-public names from SymbolicUtils / Base.Iterators accessed qualified;
+        # they go public as those base libs declare them public.
+        all_qualified_accesses_are_public = (;
+            ignore = (
+                :ShapeVecT, :Sym, :_iszero,   # SymbolicUtils
+                :peel,                         # Base.Iterators
+            ),
+        ),
+        # Non-public names explicitly imported from SymbolicUtils.
+        all_explicit_imports_are_public = (;
+            ignore = (
+                :BasicSymbolic, :isadd, :isaddmul, :isconst, :isdiv,
+                :ismul, :issym, :isterm, :symtype,   # SymbolicUtils
+            ),
+        ),
+    ),
+)

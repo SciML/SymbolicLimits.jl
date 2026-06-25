@@ -28,9 +28,9 @@
 # expansion of `g` in terms of `x`, how do we get a series expansion of `log(g)` in terms of
 # `x`?
 
-using SymbolicUtils
+using SymbolicUtils: SymbolicUtils, simplify, unwrap_const
 using SymbolicUtils: BasicSymbolic, isconst, isterm, issym, isaddmul, isdiv, isadd, ismul, symtype
-using TermInterface
+using TermInterface: TermInterface, arguments, iscall, operation
 
 """
     is_exp(expr)
