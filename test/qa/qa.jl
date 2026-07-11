@@ -4,6 +4,7 @@ using JET
 run_qa(
     SymbolicLimits;
     explicit_imports = true,
+    api_docs_kwargs = (; rendered = true),
     ei_kwargs = (;
         # Non-public names from SymbolicUtils accessed qualified;
         # they go public as SymbolicUtils declares them public.
