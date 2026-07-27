@@ -6,15 +6,45 @@ include("limits.jl")
 const _AUTO = :__0x6246e6c6ad56df8113c7eb80b2a84080__
 
 """
-    limit(expr, var, h[, side::Symbol])
+    limit(expr, var, h[, side::Symbol]) -> Tuple
 
-Compute the limit of `expr` as `var` approaches `h` and return `(limit, assumptions)`. If
-all the `assumptions` are true, then the returned `limit` is correct.
+Compute the symbolic limit of `expr` as `var` approaches `h`.
 
-`side` indicates the direction from which `var` approaches `h`. It may be one of `:left`,
-`:right`, or `:both`. If `side` is `:both` and the two sides do not align, an error is
-thrown. Side defaults to `:both` for finite `h`, `:left` for `h = Inf`, and `:right` for
-`h = -Inf`.
+# Arguments
+
+  - `expr`: A scalar `SymbolicUtils.BasicSymbolic` expression, or a scalar value.
+  - `var`: The symbolic variable that approaches `h`.
+  - `h`: The finite limit point, `Inf`, or `-Inf`.
+  - `side::Symbol`: The optional direction of approach. Use `:left`, `:right`, or `:both`.
+    When omitted, the function computes a two-sided finite limit and uses the only meaningful
+    direction for `Inf` and `-Inf`.
+
+# Returns
+
+A tuple `(value, assumptions)`, where `value` is the computed limit and `assumptions` is a
+`Set` of symbolic propositions used by the zero-equivalence heuristic. The result is valid
+when every proposition in `assumptions` holds.
+
+# Throws
+
+Throws `ArgumentError` when `side` is not `:left`, `:right`, or `:both`, or when a direction
+is incompatible with an infinite limit point. A two-sided finite limit throws `ArgumentError`
+when its one-sided values differ.
+
+# Examples
+
+```jldoctest
+julia> using SymbolicLimits, SymbolicUtils
+
+julia> @syms x::Real
+(x,)
+
+julia> limit(x^2 / exp(x), x, Inf)[1]
+0
+
+julia> limit(1 / x, x, 0, :left)[1]
+-Inf
+```
 """
 function limit end
 
