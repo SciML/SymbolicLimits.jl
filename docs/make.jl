@@ -6,6 +6,7 @@ DocMeta.setdocmeta!(SymbolicLimits, :DocTestSetup, :(using SymbolicLimits); recu
 makedocs(;
     modules = [SymbolicLimits],
     authors = "Lilith Orion Hafner <lilithhafner@gmail.com> and contributors",
+    checkdocs = :exports,
     repo = "https://github.com/SciML/SymbolicLimits.jl/blob/{commit}{path}#{line}",
     sitename = "SymbolicLimits.jl",
     format = Documenter.HTML(;

@@ -45,6 +45,6 @@ The package implements the Gruntz algorithm (1996), which handles limits by:
 
 ## API Reference
 
-```@autodocs
-Modules = [SymbolicLimits]
+```@docs
+limit
 ```

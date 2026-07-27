@@ -29,7 +29,7 @@
 # `x`?
 
 using SymbolicUtils: SymbolicUtils, simplify, unwrap_const
-using SymbolicUtils: BasicSymbolic, isconst, isterm, issym, isaddmul, isdiv, isadd, ismul, symtype
+using SymbolicUtils: BasicSymbolic, isterm, issym, isdiv, isadd, ismul, symtype
 using TermInterface: TermInterface, arguments, iscall, operation
 
 """
@@ -37,11 +37,24 @@ using TermInterface: TermInterface, arguments, iscall, operation
 
 Check if an expression is of the form `exp(...)`.
 
-Returns `true` if `expr` is a symbolic expression with the exponential function as its operation,
-`false` otherwise.
+# Arguments
+
+  - `expr`: The value to classify.
+
+# Returns
+
+`true` when `expr` is a symbolic call to `exp`; otherwise `false`.
 """
 is_exp(expr) = false
 is_exp(expr::BasicSymbolic) = iscall(expr) && operation(expr) == exp
+
+isconstant(expr::BasicSymbolic) = !issym(expr) && !iscall(expr)
+isaddmul(expr::BasicSymbolic) = isadd(expr) || ismul(expr)
+
+function isknownzero(expr)
+    value = unwrap_const(SymbolicUtils.unwrap(expr))
+    return (value isa Number || value isa AbstractArray) && iszero(value)
+end
 
 # unused. This function provides a measure of the "size" of an expression, for use in proofs
 # of termination and debugging nontermination only:
@@ -61,10 +74,17 @@ is_exp(expr::BasicSymbolic) = iscall(expr) && operation(expr) == exp
 """
     limit_inf(expr, x)
 
-Compute the limit of `expr` as `x` approaches infinity and return `(limit, assumptions)`.
+Compute the one-sided limit of `expr` as `x` approaches positive infinity.
 
-This is the internal API boundary between the internal limits.jl file and the public
-SymbolicLimits.jl file
+# Arguments
+
+  - `expr`: The scalar expression whose limit is computed.
+  - `x::BasicSymbolic`: The symbolic variable approaching positive infinity.
+
+# Returns
+
+A tuple `(value, assumptions)`, where `assumptions` records the propositions used by the
+zero-equivalence heuristic.
 """
 function limit_inf(expr, x::BasicSymbolic)
     assumptions = Set{Any}()
@@ -103,11 +123,11 @@ function signed_limit_inf(expr::BasicSymbolic{T}, x::BasicSymbolic{T}, assumptio
     Field = symtype(expr)
     @assert symtype(x) <: Field || Field <: symtype(x)
     expr === x && return (Inf, 1)
-    isconst(expr) && return signed_limit_inf(unwrap_const(expr), x, assumptions)
+    isconstant(expr) && return signed_limit_inf(unwrap_const(expr), x, assumptions)
     Ω = most_rapidly_varying_subexpressions(expr, x, assumptions)
     isempty(Ω) && return (expr, sign(expr))
     ω_val = last(Ω)
-    ω_sym = SymbolicUtils.Sym{T}(Symbol(:ω, gensym()); type = Field, shape = SymbolicUtils.ShapeVecT())
+    ω_sym = SymbolicUtils.Sym{T}(Symbol(:ω, gensym()); type = Field)
 
     while !is_exp(ω_val) # equivalent to x ∈ Ω
         expr = recursive(expr) do f, ex
@@ -171,12 +191,18 @@ end
 """
     recursive(f, args...)
 
-Apply function `f` recursively to its arguments, where `f` takes the recursive function as its first argument.
+Apply `f` recursively to `args`, passing the recursive function as `f`'s first argument.
 
-This utility function enables recursive operations on nested expressions by passing the recursive
-function itself as the first argument to `f`.
+# Arguments
 
-# Example
+  - `f`: A callable accepting the recursive function followed by the current arguments.
+  - `args...`: The initial arguments supplied to `f`.
+
+# Returns
+
+The result of `f`, with recursive calls delegated through the first argument it receives.
+
+# Examples
 
 ```julia
 recursive(expr) do f, ex
@@ -209,7 +235,7 @@ The simplified expression with log-exp cancellations applied.
 log_exp_simplify(expr) = expr
 function log_exp_simplify(expr::BasicSymbolic)
     issym(expr) && return expr
-    isconst(expr) && return expr
+    isconstant(expr) && return expr
     isterm(expr) && operation(expr) == log ||
         return operation(expr)(log_exp_simplify.(arguments(expr))...)
     arg = log_exp_simplify(only(arguments(expr)))
@@ -220,7 +246,18 @@ function log_exp_simplify(expr::BasicSymbolic)
 end
 
 """
-cancels log(exp(x)) and exp(log(x)), the latter may extend the domain
+    strong_log_exp_simplify(expr)
+
+Simplify nested logarithms and exponentials, including `log(exp(x))` and `exp(log(x))`.
+
+# Arguments
+
+  - `expr`: The expression to simplify.
+
+# Returns
+
+The simplified expression. Unlike [`log_exp_simplify`](@ref), this transformation can extend
+the domain because it replaces `exp(log(x))` with `x`.
 """
 strong_log_exp_simplify(expr) = expr
 function strong_log_exp_simplify(expr::BasicSymbolic)
@@ -266,7 +303,7 @@ function most_rapidly_varying_subexpressions(
     issym(x) ||
         throw(ArgumentError("Must expand with respect to a symbol. Got $x"))
     # TODO: this is slow. This whole algorithm is slow. Profile, benchmark, and optimize it.
-    ret = if isconst(expr)
+    ret = if isconstant(expr)
         return most_rapidly_varying_subexpressions(unwrap_const(expr), x, assumptions)
     elseif issym(expr)
         if expr.name == x.name
@@ -364,7 +401,7 @@ function compare_variance_rapidity(expr1, expr2, x, assumptions)
     # isinf(lim) && return 1
 
     lim = signed_limit_inf(_log(expr1) / _log(expr2), x, assumptions)[1]
-    SymbolicUtils._iszero(lim) && return -1
+    isknownzero(lim) && return -1
     isfinite(lim) && return 0
     isinf(lim) && return 1
     error("Unexpected limit_inf result: $lim") # e.g. if it depends on other variables?
@@ -424,7 +461,7 @@ function rewrite(
     s = only(arguments(expr))
     t = h
     c = signed_limit_inf(s / t, x, assumptions)[1]
-    @assert isfinite(c) && !SymbolicUtils._iszero(c)
+    @assert isfinite(c) && !isknownzero(c)
     return exp(s - c * t) * ω^c # I wonder how this works with multiple variables...
 end
 
@@ -460,7 +497,7 @@ function get_series_term(
     issym(ω) ||
         throw(ArgumentError("Must expand with respect to a symbol. Got $ω"))
 
-    if isconst(expr)
+    if isconstant(expr)
         return get_series_term(unwrap_const(expr), ω, h, i, assumptions)
     elseif issym(expr)
         if expr.name == ω.name
@@ -621,7 +658,7 @@ function get_leading_exponent(expr::BasicSymbolic{T}, ω::BasicSymbolic{T}, h, a
 
     zero_equivalence(expr, assumptions) && return Inf
 
-    if isconst(expr)
+    if isconstant(expr)
         return get_leading_exponent(unwrap_const(expr), ω, h, assumptions)
     elseif issym(expr)
         if expr.name == ω.name
@@ -726,7 +763,7 @@ for zero equivalence.
 Adds an assumption about the zero-equivalence of `expr` to the `assumptions` set.
 """
 function zero_equivalence(expr, assumptions)
-    res = SymbolicUtils._iszero(simplify(strong_log_exp_simplify(expr), expand = true)) === true
-    push!(assumptions, res ? SymbolicUtils._iszero(expr) : !SymbolicUtils._iszero(expr))
+    res = isknownzero(simplify(strong_log_exp_simplify(expr), expand = true))
+    push!(assumptions, res ? isknownzero(expr) : !isknownzero(expr))
     return res
 end
