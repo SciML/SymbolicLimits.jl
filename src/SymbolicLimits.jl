@@ -1,5 +1,8 @@
 module SymbolicLimits
 
+using PrecompileTools: @compile_workload, @setup_workload
+using SymbolicUtils: @syms
+
 export limit
 
 include("limits.jl")
@@ -77,5 +80,7 @@ function limit(expr::BasicSymbolic, var::BasicSymbolic, h, side::Symbol)
         end
     end
 end
+
+include("precompilation.jl")
 
 end
