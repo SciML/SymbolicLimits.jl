@@ -1,7 +1,7 @@
 using SymbolicLimits
 using Documenter
 
-DocMeta.setdocmeta!(SymbolicLimits, :DocTestSetup, :(using SymbolicLimits); recursive = true)
+DocMeta.setdocmeta!(SymbolicLimits, :DocTestSetup, :(using SymbolicLimits, SymbolicUtils); recursive = true)
 
 makedocs(;
     modules = [SymbolicLimits],
