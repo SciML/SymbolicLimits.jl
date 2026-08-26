@@ -11,7 +11,7 @@ TermInterface = "8ea1fca8-c5ef-4a55-8b96-4e9afe9c9a3c"
 [compat]
 Aqua = "0.8"
 PrecompileTools = "1.2.1"
-SafeTestsets = "0.1, 1"
+SafeTestsets = "0.1"
 SciMLTesting = "2.4"
 SymbolicUtils = "4"
 TermInterface = "2.0"
