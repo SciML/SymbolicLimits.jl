@@ -139,12 +139,12 @@ function signed_limit_inf(expr::BasicSymbolic{T}, x::BasicSymbolic{T}, assumptio
         # Ω = most_rapidly_varying_subexpressions(expr, x) NO! this line could lead to infinite recursion
         Ω = [
             log_exp_simplify(
-                    recursive(expr) do f, ex
-                        symtype(ex) === Field || return ex
-                        iscall(ex) || return ex === x ? exp(x) : ex
-                        operation(ex)(f.(arguments(ex))...)
+                recursive(expr) do f, ex
+                    symtype(ex) === Field || return ex
+                    iscall(ex) || return ex === x ? exp(x) : ex
+                    operation(ex)(f.(arguments(ex))...)
                 end
-                ) for expr in Ω
+            ) for expr in Ω
         ]
         ω_val = last(Ω)
     end
