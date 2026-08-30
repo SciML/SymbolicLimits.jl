@@ -1,7 +1,7 @@
 name = "SymbolicLimits"
 uuid = "19f23fe9-fdab-4a78-91af-e7b7767979c3"
 authors = ["Lilith Orion Hafner <lilithhafner@gmail.com> and contributors"]
-version = "1.2.0"
+version = "1.2.1"
 
 [deps]
 PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
