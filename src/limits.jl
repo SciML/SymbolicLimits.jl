@@ -672,13 +672,14 @@ function get_leading_exponent(expr::BasicSymbolic{T}, ω::BasicSymbolic{T}, h, a
             arg = only(arguments(expr))
             exponent = get_leading_exponent(arg, ω, h, assumptions)
             lt = get_series_term(arg, ω, h, exponent, assumptions)
-            if !zero_equivalence(lt - one(Field), assumptions) # Is this right? Should we just use the generic loop from below for all cases?
+            # ω^0 coeff of log is log(lt)+h*exponent; nonzero unless lt≈1 and exponent==0
+            if !zero_equivalence(lt - one(Field), assumptions) || !iszero(exponent)
                 0
             else
                 # There will never be a term with power less than 0, and the zero power term
-                # is log(T0) which is handled above with the "isone" check.
+                # is log(T0) which is handled above.
                 findfirst(
-                    i -> zero_equivalence(get_series_term(expr, ω, h, i, assumptions), assumptions),
+                    i -> !zero_equivalence(get_series_term(expr, ω, h, i, assumptions), assumptions),
                     1:typemax(Int)
                 )
             end
