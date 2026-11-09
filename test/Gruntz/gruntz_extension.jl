@@ -50,6 +50,8 @@ using Test
     end
 
     @testset "undecided limits fall back to the native algorithm" begin
-        @test_throws "Not implemented: cos" limit(sin(x)^2 + cos(x)^2, x, Inf)
+        # The native algorithm reports whichever of sin/cos it meets first, which
+        # depends on term ordering and differs across Julia and SymbolicUtils versions.
+        @test_throws r"Not implemented: (sin|cos)" limit(sin(x)^2 + cos(x)^2, x, Inf)
     end
 end
