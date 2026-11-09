@@ -30,6 +30,12 @@ when every proposition in `assumptions` holds.
 
 # Throws
 
+When [GruntzLimit.jl](https://github.com/jverzani/GruntzLimit.jl) is loaded
+(`using GruntzLimit`), it computes the limit first, which adds trigonometric, hyperbolic,
+inverse and special functions, non-integer powers and symbolic limit points; the
+`assumptions` set is then empty. SymbolicLimits' own algorithm handles the cases GruntzLimit
+reports as failed or undecided. A limit GruntzLimit proves does not exist throws `ArgumentError`.
+
 Throws `ArgumentError` when `side` is not `:left`, `:right`, or `:both`, or when a direction
 is incompatible with an infinite limit point. A two-sided finite limit throws `ArgumentError`
 when its one-sided values differ.
@@ -51,10 +57,22 @@ julia> limit(1 / x, x, 0, :left)[1]
 """
 function limit end
 
+# Extended by the GruntzLimit extension. Returns `(value, assumptions)`, or `nothing` to
+# fall back to the algorithm in this package.
+function _gruntz_limit end
+
 limit(expr, var::BasicSymbolic, h) = limit(expr, var, h, _AUTO)
 limit(expr, var::BasicSymbolic, h, side::Symbol) = expr
 function limit(expr::BasicSymbolic, var::BasicSymbolic, h, side::Symbol)
     side ∈ (:left, :right, :both, _AUTO) || throw(ArgumentError("Unknown side: $side"))
+    if !isempty(methods(_gruntz_limit))
+        if h isa Number && isinf(h)
+            side ∈ (signbit(h) ? (:right, _AUTO) : (:left, _AUTO)) ||
+                throw(ArgumentError("Cannot take limit on the $side side of $h"))
+        end
+        result = Base.invokelatest(_gruntz_limit, expr, var, h, side)
+        result === nothing || return result
+    end
     return if isinf(h)
         if signbit(h)
             side ∈ (:right, _AUTO) ||

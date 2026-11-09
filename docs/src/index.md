@@ -43,6 +43,22 @@ The package implements the Gruntz algorithm (1996), which handles limits by:
 3. Computing series expansions around the most varying terms
 4. Extracting leading coefficients and exponents
 
+## Optional GruntzLimit.jl backend
+
+Loading [GruntzLimit.jl](https://github.com/jverzani/GruntzLimit.jl) (MIT, by jverzani and
+contributors) with `using GruntzLimit` activates a package extension. [`limit`](@ref) then asks
+GruntzLimit first, which handles trigonometric, hyperbolic, inverse and special functions,
+non-integer powers and symbolic limit points. The returned assumptions set is empty. When
+GruntzLimit cannot decide a limit, the algorithm of this package runs; when GruntzLimit proves
+that the limit does not exist, `limit` throws an `ArgumentError`.
+
+```julia
+using SymbolicLimits, SymbolicUtils, GruntzLimit
+
+@syms x::Real
+limit(sin(x) / x, x, 0)
+```
+
 ## API Reference
 
 ```@docs
