@@ -46,11 +46,16 @@ The package implements the Gruntz algorithm (1996), which handles limits by:
 ## Optional GruntzLimit.jl backend
 
 Loading [GruntzLimit.jl](https://github.com/jverzani/GruntzLimit.jl) (MIT, by jverzani and
-contributors) with `using GruntzLimit` activates a package extension. [`limit`](@ref) then asks
-GruntzLimit first, which handles trigonometric, hyperbolic, inverse and special functions,
-non-integer powers and symbolic limit points. The returned assumptions set is empty. When
-GruntzLimit cannot decide a limit, the algorithm of this package runs; when GruntzLimit proves
-that the limit does not exist, `limit` throws an `ArgumentError`.
+contributors) with `using GruntzLimit` activates a package extension. [`limit`](@ref) then runs
+the algorithm of this package first. Only when it does not produce a result is GruntzLimit
+consulted, which handles trigonometric, hyperbolic, inverse and special functions, non-integer
+powers and symbolic limit points. The returned assumptions set is empty when GruntzLimit's
+answer does not depend on generic assumptions about symbolic parameters. When GruntzLimit
+proves that the limit does not exist, `limit` throws an `ArgumentError`. The extension
+declines inputs where a generic GruntzLimit answer would depend on such assumptions (for
+example `sin(x) / (a + x)`, whose limit is 1 when `a` is 0), inputs containing a numeric
+constant other than `Float64`, and symbolic leaves named `π` or `ℯ`; the error of this
+package's algorithm is then thrown.
 
 ```julia
 using SymbolicLimits, SymbolicUtils, GruntzLimit

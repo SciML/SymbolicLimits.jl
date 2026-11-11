@@ -22,10 +22,24 @@ using Test
         @test Float64(unwrap_const(simplify(v))) ≈ -2 / √π
     end
 
-    @testset "removable singularities" begin
-        @test limit((x^2 - 1) / (x - 1), x, 1)[1] == 2
-        @test limit((x^3 - 8) / (x^2 - 4), x, 2)[1] == 3
-        @test limit((x^2 - 4) / (x^2 - 5x + 6), x, 2)[1] == -4
+    @testset "native results are not changed by the extension" begin
+        @test limit(x + 1.0e-100, x, 0)[1] == 1.0e-100
+        c = big"1e-1000"
+        @test limit(c * x, x, Inf)[1] == Inf
+        @test limit(x + c, x, 0)[1] ≈ c
+    end
+
+    @testset "generic parameter answers are not returned as unconditional" begin
+        @test_throws ErrorException limit(sin(x) / (a + x), x, 0)
+        expr = SymbolicUtils.substitute(sin(x) / (a + x), Dict(a => 0))
+        @test limit(expr, x, 0)[1] == 1
+    end
+
+    @testset "symbol identity is preserved" begin
+        @syms π::Real
+        r = limit(π * x, x, 1)[1]
+        @test r === π
+        @test isequal(unwrap_const(SymbolicUtils.substitute(r, Dict(π => 3))), 3)
     end
 
     @testset "agrees with the native results" begin
