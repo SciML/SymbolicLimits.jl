@@ -50,11 +50,13 @@ contributors) with `using GruntzLimit` activates a package extension. [`limit`](
 the algorithm of this package first. Only when it does not produce a result is GruntzLimit
 consulted, which handles trigonometric, hyperbolic, inverse and special functions, non-integer
 powers and symbolic limit points. The returned assumptions set is empty when GruntzLimit's
-answer does not depend on generic assumptions about symbolic parameters. When GruntzLimit
+answer holds unconditionally: with symbolic parameters, the extension only returns an answer
+when GruntzLimit's case split gives a single unconditional case. When GruntzLimit
 proves that the limit does not exist, `limit` throws an `ArgumentError`. The extension
-declines inputs where a generic GruntzLimit answer would depend on such assumptions (for
-example `sin(x) / (a + x)`, whose limit is 1 when `a` is 0), inputs containing a numeric
-constant other than `Float64`, and symbolic leaves named `π` or `ℯ`; the error of this
+declines inputs where GruntzLimit's case split gives conditional cases (for
+example `sin(x) / (a + x)`, whose limit is 1 when `a` is 0 and 0 otherwise), inputs containing a
+numeric constant other than `Float64` or a nonzero constant with absolute value below
+`1e-60`, which GruntzLimit treats as zero, and symbolic leaves named `π` or `ℯ`; the error of this
 package's algorithm is then thrown.
 
 ```julia

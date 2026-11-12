@@ -1,7 +1,7 @@
 module SymbolicLimitsGruntzLimitExt
 
 using SymbolicLimits: SymbolicLimits
-using GruntzLimit: gruntz_limit, GruntzError
+using GruntzLimit: gruntz_limit, gruntz_cases, GruntzError
 
 const _CONSTANT_NAMES = ("π", "ℯ")
 
@@ -10,7 +10,8 @@ mutable struct _Scan
     params::Vector{Any}
 end
 
-_unsupported(n::Number) = n isa AbstractFloat && !(n isa Float64)
+_unsupported(n::Number) = (n isa AbstractFloat && !(n isa Float64)) ||
+    (n isa Real && isfinite(n) && !iszero(n) && abs(BigFloat(n)) < big"1e-60")
 
 function _walk(expr, var, state::_Scan)
     if expr isa Number
@@ -43,12 +44,6 @@ end
 _norm(value) = value isa SymbolicLimits.BasicSymbolic && SymbolicLimits.isconstant(value) ?
     SymbolicLimits.unwrap_const(value) : value
 
-function _agrees(value, param, specialized)
-    candidate = value isa SymbolicLimits.BasicSymbolic ?
-        SymbolicLimits.SymbolicUtils.substitute(value, Dict(param => 0)) : value
-    return isequal(_norm(candidate), _norm(specialized))
-end
-
 function SymbolicLimits._gruntz_limit(expr, var, h, side::Symbol)
     string(var.name) in _CONSTANT_NAMES && return nothing
     dir = side == :left ? :- : side == :right ? :+ : :both
@@ -63,14 +58,15 @@ function SymbolicLimits._gruntz_limit(expr, var, h, side::Symbol)
         err.kind === :nolimit && throw(ArgumentError(err.msg))
         return nothing
     end
-    for param in state.params
-        specialized = try
-            gruntz_limit(expr, var, h; dir, signs = (param => :zero,))
+    if !isempty(state.params)
+        cases = try
+            gruntz_cases(expr, var, h; dir)
         catch err
             err isa GruntzError || rethrow()
             return nothing
         end
-        _agrees(value, param, specialized) || return nothing
+        (length(cases) == 1 && isempty(first(cases).first) &&
+            isequal(_norm(last(cases).second), _norm(value))) || return nothing
     end
     return value, Set{Any}()
 end

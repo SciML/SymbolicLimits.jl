@@ -34,10 +34,12 @@ When [GruntzLimit.jl](https://github.com/jverzani/GruntzLimit.jl) is loaded
 (`using GruntzLimit`), this package's algorithm runs first. When it does not produce a
 result, GruntzLimit is consulted, which adds trigonometric, hyperbolic, inverse and
 special functions, non-integer powers and symbolic limit points. The `assumptions` set
-is then empty when GruntzLimit's answer does not depend on generic assumptions about
-symbolic parameters. A limit GruntzLimit proves does not exist throws `ArgumentError`.
-When a generic GruntzLimit answer would depend on such assumptions, or the input
-contains a numeric constant other than `Float64`, the extension declines and the error
+is then empty when GruntzLimit's answer holds unconditionally: with symbolic parameters,
+the extension only returns an answer when GruntzLimit's case split gives a single
+unconditional case. A limit GruntzLimit proves does not exist throws `ArgumentError`.
+When GruntzLimit's case split gives conditional cases, or the input
+contains a numeric constant other than `Float64` or a nonzero constant with absolute
+value below `1e-60`, which GruntzLimit treats as zero, the extension declines and the error
 of this package's algorithm is thrown.
 
 Throws `ArgumentError` when `side` is not `:left`, `:right`, or `:both`, or when a direction

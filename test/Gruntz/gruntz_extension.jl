@@ -33,6 +33,14 @@ using Test
         @test_throws ErrorException limit(sin(x) / (a + x), x, 0)
         expr = SymbolicUtils.substitute(sin(x) / (a + x), Dict(a => 0))
         @test limit(expr, x, 0)[1] == 1
+        @test_throws ErrorException limit(sin(x) / (a - 1 + x), x, 0)
+        specialized = SymbolicUtils.substitute(sin(x) / (a - 1 + x), Dict(a => 1))
+        @test limit(specialized, x, 0)[1] == 1
+    end
+
+    @testset "tiny constants are not dropped on fallback expressions" begin
+        @test_throws ErrorException limit(sin(x) + 1.0e-100, x, 0)
+        @test Float64(limit(sin(x) + 1.0e-50, x, 0)[1]) ≈ 1.0e-50
     end
 
     @testset "symbol identity is preserved" begin
