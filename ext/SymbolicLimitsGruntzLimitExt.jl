@@ -65,8 +65,10 @@ function SymbolicLimits._gruntz_limit(expr, var, h, side::Symbol)
             err isa GruntzError || rethrow()
             return nothing
         end
-        (length(cases) == 1 && isempty(first(cases).first) &&
-            isequal(_norm(last(cases).second), _norm(value))) || return nothing
+        (
+            length(cases) == 1 && isempty(first(cases).first) &&
+                isequal(_norm(last(cases).second), _norm(value))
+        ) || return nothing
     end
     return value, Set{Any}()
 end
