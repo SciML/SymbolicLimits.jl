@@ -13,8 +13,6 @@ using Test
         @test limit(sin(x) / x, x, Inf)[1] == 0
         @test limit((tan(x) - sin(x)) / x^3, x, 0)[1] == 1 // 2
         @test limit(x * sin(1 / x), x, Inf)[1] == 1
-        @test limit(sin(x)^2 / (1 + cos(x)), x, π) == (2, Set{Any}())
-        @test isequal(limit(sin(a * x) / x, x, 0)[1], a)
         @test limit(exp(x) * (sin(1 / x + exp(-x)) - sin(1 / x)), x, Inf)[1] == 1
         @test limit(exp(csc(x)) / exp(cot(x)), x, 0)[1] == 1
         @test limit(1 / (x^log(log(log(log(1 / x - 1))))), x, 0, :right)[1] == Inf
@@ -36,11 +34,21 @@ using Test
         @test_throws ErrorException limit(sin(x) / (a - 1 + x), x, 0)
         specialized = SymbolicUtils.substitute(sin(x) / (a - 1 + x), Dict(a => 1))
         @test limit(specialized, x, 0)[1] == 1
+        @test_throws ErrorException limit(sin(a * x) / x, x, 0)
+        @test_throws ErrorException limit((a - 1) * sin(1 / x), x, 0)
+        collapsed = SymbolicUtils.substitute((a - 1) * sin(1 / x), Dict(a => 1))
+        @test limit(collapsed, x, 0)[1] == 0
     end
 
-    @testset "tiny constants are not dropped on fallback expressions" begin
+    @testset "inexact and unverifiable fallback inputs are declined" begin
         @test_throws ErrorException limit(sin(x) + 1.0e-100, x, 0)
-        @test Float64(limit(sin(x) + 1.0e-50, x, 0)[1]) ≈ 1.0e-50
+        @test_throws ErrorException limit(sin(x) + 1.0e-50, x, 0)
+        @test_throws ErrorException limit(sin(x) + (x + 1.0e-40)^2, x, 0)
+        @test_throws ErrorException limit(sin(x)^2, x, 1.0e-40)
+        @test_throws ErrorException limit(sin(x)^2 / (1 + cos(x)), x, π)
+        @test_throws ErrorException limit(sin(x)^2, x, big"1" // big"10"^40)
+        @test !isequal(limit(sin(x)^2, x, 1 // 10^6)[1], 0)
+        @test limit(sin(x) + 2, x, 0)[1] == 2
     end
 
     @testset "symbol identity is preserved" begin

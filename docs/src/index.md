@@ -48,16 +48,16 @@ The package implements the Gruntz algorithm (1996), which handles limits by:
 Loading [GruntzLimit.jl](https://github.com/jverzani/GruntzLimit.jl) (MIT, by jverzani and
 contributors) with `using GruntzLimit` activates a package extension. [`limit`](@ref) then runs
 the algorithm of this package first. Only when it does not produce a result is GruntzLimit
-consulted, which handles trigonometric, hyperbolic, inverse and special functions, non-integer
-powers and symbolic limit points. The returned assumptions set is empty when GruntzLimit's
-answer holds unconditionally: with symbolic parameters, the extension only returns an answer
-when GruntzLimit's case split gives a single unconditional case. When GruntzLimit
-proves that the limit does not exist, `limit` throws an `ArgumentError`. The extension
-declines inputs where GruntzLimit's case split gives conditional cases (for
-example `sin(x) / (a + x)`, whose limit is 1 when `a` is 0 and 0 otherwise), inputs containing a
-numeric constant other than `Float64` or a nonzero constant with absolute value below
-`1e-60`, which GruntzLimit treats as zero, and symbolic leaves named `π` or `ℯ`; the error of this
-package's algorithm is then thrown.
+consulted, which handles trigonometric, hyperbolic, inverse and special functions and
+non-integer powers. GruntzLimit is only consulted on exact input: every numeric constant in
+the expression and the limit point must be an integer or rational number, an infinite limit
+point is allowed, and the limit variable must be the only symbolic leaf. Inputs with
+symbolic parameters (for example `sin(x) / (a + x)`, whose limit is 1 when `a` is 0 and 0
+otherwise) or with floating-point or irrational constants such as `π` or `ℯ` are declined,
+as is a reported zero limit at a finite point where the expression evaluates to a nonzero
+finite value. When GruntzLimit proves that the limit does not exist, `limit` throws an
+`ArgumentError`. When the extension declines, the error of this package's algorithm is
+thrown.
 
 ```julia
 using SymbolicLimits, SymbolicUtils, GruntzLimit

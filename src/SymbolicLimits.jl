@@ -33,14 +33,14 @@ when every proposition in `assumptions` holds.
 When [GruntzLimit.jl](https://github.com/jverzani/GruntzLimit.jl) is loaded
 (`using GruntzLimit`), this package's algorithm runs first. When it does not produce a
 result, GruntzLimit is consulted, which adds trigonometric, hyperbolic, inverse and
-special functions, non-integer powers and symbolic limit points. The `assumptions` set
-is then empty when GruntzLimit's answer holds unconditionally: with symbolic parameters,
-the extension only returns an answer when GruntzLimit's case split gives a single
-unconditional case. A limit GruntzLimit proves does not exist throws `ArgumentError`.
-When GruntzLimit's case split gives conditional cases, or the input
-contains a numeric constant other than `Float64` or a nonzero constant with absolute
-value below `1e-60`, which GruntzLimit treats as zero, the extension declines and the error
-of this package's algorithm is thrown.
+special functions and non-integer powers. GruntzLimit is only consulted on exact input:
+every numeric constant in the expression and the limit point must be an integer or
+rational number, an infinite limit point is allowed, and the limit variable must be the
+only symbolic leaf. Inputs with symbolic parameters or with floating-point or irrational
+constants such as `π` or `ℯ` are declined, as is a reported zero limit at a finite point
+where the expression evaluates to a nonzero finite value. A limit GruntzLimit proves
+does not exist throws `ArgumentError`. When the extension declines, the error of this
+package's algorithm is thrown.
 
 Throws `ArgumentError` when `side` is not `:left`, `:right`, or `:both`, or when a direction
 is incompatible with an infinite limit point. A two-sided finite limit throws `ArgumentError`

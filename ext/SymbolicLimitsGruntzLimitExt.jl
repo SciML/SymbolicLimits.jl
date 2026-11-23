@@ -1,56 +1,73 @@
 module SymbolicLimitsGruntzLimitExt
 
 using SymbolicLimits: SymbolicLimits
-using GruntzLimit: gruntz_limit, gruntz_cases, GruntzError
+using GruntzLimit: gruntz_limit, GruntzError
 
 const _CONSTANT_NAMES = ("π", "ℯ")
 
-mutable struct _Scan
-    unsupported::Bool
-    params::Vector{Any}
-end
+# GruntzLimit evaluates numerically, so inexact constants and free parameters can make its
+# answer conditional or wrong. Only exact constants and the limit variable are accepted.
+_exact(n::Number) = n isa Integer || n isa Rational || (n isa Real && isinf(n))
 
-_unsupported(n::Number) = (n isa AbstractFloat && !(n isa Float64)) ||
-    (n isa Real && isfinite(n) && !iszero(n) && abs(BigFloat(n)) < big"1e-60")
-
-function _walk(expr, var, state::_Scan)
+function _supported(expr, var)
     if expr isa Number
-        state.unsupported |= _unsupported(expr)
+        return _exact(expr)
     elseif expr isa SymbolicLimits.BasicSymbolic
         if SymbolicLimits.issym(expr)
-            if expr === var
-                return
-            end
-            if string(expr.name) in _CONSTANT_NAMES
-                state.unsupported = true
-                return
-            end
-            any(p -> p === expr, state.params) || push!(state.params, expr)
+            return expr === var
         elseif SymbolicLimits.isconstant(expr)
             value = SymbolicLimits.unwrap_const(expr)
-            value isa Number && (state.unsupported |= _unsupported(value))
+            return value isa Number && _exact(value)
         elseif SymbolicLimits.isterm(expr) || SymbolicLimits.isaddmul(expr) ||
                 SymbolicLimits.isdiv(expr)
-            for arg in SymbolicLimits.arguments(expr)
-                _walk(arg, var, state)
-            end
-        else
-            state.unsupported = true
+            return all(arg -> _supported(arg, var), SymbolicLimits.arguments(expr))
         end
     end
-    return
+    return false
+end
+
+_big(v) = v isa Real ? BigFloat(v) : v
+
+function _numeval(expr, var, h)
+    expr isa Number && return _big(expr)
+    if expr isa SymbolicLimits.BasicSymbolic
+        if SymbolicLimits.issym(expr)
+            return expr === var ? _big(h) : nothing
+        elseif SymbolicLimits.isconstant(expr)
+            value = SymbolicLimits.unwrap_const(expr)
+            return value isa Number ? _big(value) : nothing
+        elseif SymbolicLimits.isterm(expr) || SymbolicLimits.isaddmul(expr) ||
+                SymbolicLimits.isdiv(expr)
+            args = map(arg -> _numeval(arg, var, h), SymbolicLimits.arguments(expr))
+            any(isnothing, args) && return nothing
+            return try
+                SymbolicLimits.operation(expr)(args...)
+            catch
+                nothing
+            end
+        end
+    end
+    return nothing
 end
 
 _norm(value) = value isa SymbolicLimits.BasicSymbolic && SymbolicLimits.isconstant(value) ?
     SymbolicLimits.unwrap_const(value) : value
 
+# Values produced during evaluation below 1e-60 are snapped to zero by the backend, so a
+# reported zero is suspect when the expression evaluates to a nonzero finite value at the
+# limit point.
+function _suspicious_zero(value, expr, var, h)
+    result = _norm(value)
+    (result isa Number && iszero(result)) || return false
+    (h isa Number && isfinite(h)) || return false
+    point = _numeval(expr, var, h)
+    return point isa Number && isfinite(point) && !iszero(point)
+end
+
 function SymbolicLimits._gruntz_limit(expr, var, h, side::Symbol)
     string(var.name) in _CONSTANT_NAMES && return nothing
+    (_supported(expr, var) && _supported(h, var)) || return nothing
     dir = side == :left ? :- : side == :right ? :+ : :both
-    state = _Scan(false, Any[])
-    _walk(expr, var, state)
-    _walk(h, var, state)
-    state.unsupported && return nothing
     value = try
         gruntz_limit(expr, var, h; dir)
     catch err
@@ -58,18 +75,7 @@ function SymbolicLimits._gruntz_limit(expr, var, h, side::Symbol)
         err.kind === :nolimit && throw(ArgumentError(err.msg))
         return nothing
     end
-    if !isempty(state.params)
-        cases = try
-            gruntz_cases(expr, var, h; dir)
-        catch err
-            err isa GruntzError || rethrow()
-            return nothing
-        end
-        (
-            length(cases) == 1 && isempty(first(cases).first) &&
-                isequal(_norm(last(cases).second), _norm(value))
-        ) || return nothing
-    end
+    _suspicious_zero(value, expr, var, h) && return nothing
     return value, Set{Any}()
 end
 
