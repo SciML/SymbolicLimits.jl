@@ -30,6 +30,18 @@ when every proposition in `assumptions` holds.
 
 # Throws
 
+When [GruntzLimit.jl](https://github.com/jverzani/GruntzLimit.jl) is loaded
+(`using GruntzLimit`), this package's algorithm runs first. When it does not produce a
+result, GruntzLimit is consulted, which adds trigonometric, hyperbolic, inverse and
+special functions and non-integer powers. GruntzLimit is only consulted on exact input:
+every numeric constant in the expression and the limit point must be an integer or
+rational number, an infinite limit point is allowed, and the limit variable must be the
+only symbolic leaf. Inputs with symbolic parameters or with floating-point or irrational
+constants such as `π` or `ℯ` are declined, as is a reported zero limit at a finite point
+where the expression evaluates to a nonzero finite value. A limit GruntzLimit proves
+does not exist throws `ArgumentError`. When the extension declines, the error of this
+package's algorithm is thrown.
+
 Throws `ArgumentError` when `side` is not `:left`, `:right`, or `:both`, or when a direction
 is incompatible with an infinite limit point. A two-sided finite limit throws `ArgumentError`
 when its one-sided values differ.
@@ -51,10 +63,33 @@ julia> limit(1 / x, x, 0, :left)[1]
 """
 function limit end
 
+# Extended by the GruntzLimit extension. Returns `(value, assumptions)`, or `nothing` to
+# decline, in which case the error of the algorithm in this package is thrown.
+function _gruntz_limit end
+
 limit(expr, var::BasicSymbolic, h) = limit(expr, var, h, _AUTO)
 limit(expr, var::BasicSymbolic, h, side::Symbol) = expr
 function limit(expr::BasicSymbolic, var::BasicSymbolic, h, side::Symbol)
     side ∈ (:left, :right, :both, _AUTO) || throw(ArgumentError("Unknown side: $side"))
+    if h isa Number && isinf(h)
+        side ∈ (signbit(h) ? (:right, _AUTO) : (:left, _AUTO)) ||
+            throw(ArgumentError("Cannot take limit on the $side side of $h"))
+    end
+    outcome = try
+        (:ok, _native_limit(expr, var, h, side))
+    catch err
+        err isa InterruptException && rethrow()
+        (:err, err)
+    end
+    outcome[1] === :ok && return outcome[2]
+    if !isempty(methods(_gruntz_limit))
+        result = Base.invokelatest(_gruntz_limit, expr, var, h, side)
+        result === nothing || return result
+    end
+    throw(outcome[2])
+end
+
+function _native_limit(expr::BasicSymbolic, var::BasicSymbolic, h, side::Symbol)
     return if isinf(h)
         if signbit(h)
             side ∈ (:right, _AUTO) ||
