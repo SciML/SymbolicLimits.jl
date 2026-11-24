@@ -47,7 +47,14 @@ using Test
         @test_throws ErrorException limit(sin(x)^2, x, 1.0e-40)
         @test_throws ErrorException limit(sin(x)^2 / (1 + cos(x)), x, π)
         @test_throws ErrorException limit(sin(x)^2, x, big"1" // big"10"^40)
-        @test !isequal(limit(sin(x)^2, x, 1 // 10^6)[1], 0)
+        @test isequal(
+            limit(sin(x)^2, x, 1 // 10^6)[1],
+            SymbolicUtils.substitute(sin(x)^2, Dict(x => 1 // 10^6))
+        )
+        tiny = big(1) // big(10)^80
+        @test_throws ErrorException limit(sin(tiny + 1 / x), x, Inf)
+        @test_throws ErrorException limit(sin(x) * sin(tiny + x) / x, x, 0)
+        @test_throws ErrorException limit(1 - cos(x), x, big(1) // big(10)^40)
         @test limit(sin(x) + 2, x, 0)[1] == 2
     end
 

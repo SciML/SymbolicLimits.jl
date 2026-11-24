@@ -53,14 +53,35 @@ end
 _norm(value) = value isa SymbolicLimits.BasicSymbolic && SymbolicLimits.isconstant(value) ?
     SymbolicLimits.unwrap_const(value) : value
 
-# Values produced during evaluation below 1e-60 are snapped to zero by the backend, so a
-# reported zero is suspect when the expression evaluates to a nonzero finite value at the
-# limit point.
-function _suspicious_zero(value, expr, var, h)
+# The backend treats values below 1e-60 as zero, so a zero answer can hide a tiny nonzero
+# limit. Such a zero is trusted only when no exact constant (or finite limit point) is of
+# extreme magnitude and the expression does not evaluate to a nonzero value at the limit
+# point, checked at a precision far above the backend's resolution.
+const _EVAL_PRECISION = 4096
+
+_extreme(n::Real) = isfinite(n) && !iszero(n) && (abs(n) < 1 // 10^6 || abs(n) > 10^6)
+_extreme(n) = false
+
+function _extreme_constant(expr)
+    if expr isa Number
+        return _extreme(expr)
+    elseif expr isa SymbolicLimits.BasicSymbolic
+        if SymbolicLimits.isconstant(expr)
+            return _extreme(SymbolicLimits.unwrap_const(expr))
+        elseif SymbolicLimits.isterm(expr) || SymbolicLimits.isaddmul(expr) ||
+                SymbolicLimits.isdiv(expr)
+            return any(_extreme_constant, SymbolicLimits.arguments(expr))
+        end
+    end
+    return false
+end
+
+function _unverifiable_zero(value, expr, var, h)
     result = _norm(value)
     (result isa Number && iszero(result)) || return false
+    (_extreme_constant(expr) || _extreme_constant(h)) && return true
     (h isa Number && isfinite(h)) || return false
-    point = _numeval(expr, var, h)
+    point = setprecision(() -> _numeval(expr, var, h), BigFloat, _EVAL_PRECISION)
     return point isa Number && isfinite(point) && !iszero(point)
 end
 
@@ -75,7 +96,7 @@ function SymbolicLimits._gruntz_limit(expr, var, h, side::Symbol)
         err.kind === :nolimit && throw(ArgumentError(err.msg))
         return nothing
     end
-    _suspicious_zero(value, expr, var, h) && return nothing
+    _unverifiable_zero(value, expr, var, h) && return nothing
     return value, Set{Any}()
 end
 
